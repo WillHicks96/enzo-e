@@ -1,0 +1,30 @@
+include "input/PPM/method_ppm-8.in"
+
+Field {
+   list += ["green"];
+}
+
+Initial {
+  value{
+    green = [ 0.0625, x + y < 0.5,0.5 ];
+  }
+}
+
+Group {
+   list += ["color"];
+   color {field_list = ["green"];}
+   conserved {field_list += ["green"];}
+}
+
+
+Output {
+   list = ["density","green"]; #,"hdf5"];         
+       green {
+	   type     = "image";
+           field_list = ["green"];
+           name = ["method_ppm_color-8-%06d_green.png", "cycle"];
+           include "input/Schedule/schedule_cycle_10.incl"
+       }
+       density { name = ["method_ppm_color-8-%06d_de.png", "cycle"]; }
+       data    { name = ["method_ppm_color-8-%02d-%06d.h5", "proc","cycle"]; } 
+}
