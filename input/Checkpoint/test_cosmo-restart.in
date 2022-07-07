@@ -11,7 +11,7 @@ Initial {
      gravity {
          solver = "dd";
      };
-     list = ["debug","pm_deposit", "gravity", "pm_update", "comoving_expansion" ];
+     list = ["pm_deposit", "gravity", "pm_update", "comoving_expansion" ];
  }
 
 Solver {

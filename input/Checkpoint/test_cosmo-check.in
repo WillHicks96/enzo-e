@@ -5,7 +5,7 @@ Adapt { min_level = -2; }
      gravity {
          solver = "dd";
      };
-     list = ["order_morton","check","debug","pm_deposit", "gravity", "pm_update", "comoving_expansion" ];
+     list = ["order_morton","check","pm_deposit", "gravity", "pm_update", "comoving_expansion" ];
      order_morton {
          schedule {
              list = [140];
