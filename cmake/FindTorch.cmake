@@ -15,9 +15,8 @@
 #   Torch::Torch - The Torch library
 
 find_path(Torch_INCLUDE_DIR
-  NAMES sleef.h # while not the main include, sleef is the only one that is located in the top-level include directory
-  #NAMES script.h
-  PATHS ${Torch_ROOT}/include #/torch
+  NAMES torch/script.h
+  PATHS ${Torch_ROOT}/include
 )
 
 # Grackle by default builds both dynamic and static libs.

@@ -735,6 +735,8 @@ Method * EnzoProblem::create_method_
       method = new EnzoMethodFeedback();
     }
 
+  } else if (name == "starnet") {
+      method = new EnzoMethodStarNet();
   } else if (name == "check") {
 
     // Method for checkpointing the simulation

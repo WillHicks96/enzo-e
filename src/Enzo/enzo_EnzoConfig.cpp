@@ -811,6 +811,7 @@ void EnzoConfig::read(Parameters * p) throw()
   read_method_ppm_(p);
   read_method_sink_maker_(p);
   read_method_star_maker_(p);
+  read_method_starnet_(p);
   read_method_turbulence_(p);
   read_method_vlct_(p);
 
@@ -1755,6 +1756,10 @@ void EnzoConfig::read_method_star_maker_(Parameters * p)
     ("Method:star_maker:turn_off_probability",false);
 }
 
+void EnzoConfig::read_method_starnet_(Parameters * p)
+{
+
+}
 
 void EnzoConfig::read_method_background_acceleration_(Parameters * p)
 {

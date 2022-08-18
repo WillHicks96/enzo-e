@@ -122,6 +122,7 @@ module enzo {
   PUPable EnzoMethodStarMaker;
   PUPable EnzoMethodStarMakerStochasticSF;
   PUPable EnzoMethodStarMakerSTARSS;
+  PUPable EnzoMethodStarNet;
 
   PUPable EnzoBfieldMethodCT;
 

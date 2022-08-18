@@ -538,6 +538,7 @@ protected: // methods
   void read_method_ppm_(Parameters *);
   void read_method_sink_maker_(Parameters *);
   void read_method_star_maker_(Parameters *);
+  void read_method_starnet_(Parameters *);
   void read_method_turbulence_(Parameters *);
   void read_method_vlct_(Parameters *);
   

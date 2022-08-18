@@ -271,6 +271,7 @@ extern "C" {
 #include "enzo_EnzoMethodStarMaker.hpp"
 #include "enzo_EnzoMethodStarMakerSTARSS.hpp"
 #include "enzo_EnzoMethodStarMakerStochasticSF.hpp"
+#include "enzo_EnzoMethodStarNet.hpp"
 #include "enzo_EnzoMethodThresholdAccretion.hpp"
 #include "enzo_EnzoMethodTurbulence.hpp"
 
