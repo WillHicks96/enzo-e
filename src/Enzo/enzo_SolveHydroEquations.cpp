@@ -144,7 +144,15 @@ int EnzoBlock::SolveHydroEquations
 
   if (density_floor > 0.0) {
     for (int i=0; i<mx*my*mz; i++) {
-      density[i] = std::max(density[i], density_floor);
+      double d_pre = density[i];
+      density[i] = std::max(d_pre, density_floor);
+      double density_ratio = d_pre / density[i];
+      // rescale color fields
+      for (int ic = 0; ic < ncolor; ic++){
+        enzo_float * cfield = (enzo_float *)
+        field.values(field.groups()->item("color",ic));
+        cfield[i] *= density_ratio;
+      }
     }
   }
 
