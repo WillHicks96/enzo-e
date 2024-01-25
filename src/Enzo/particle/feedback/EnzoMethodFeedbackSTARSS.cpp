@@ -1042,7 +1042,8 @@ void EnzoMethodFeedbackSTARSS::deposit_feedback (Block * block,
 
   double T = temperature[index];
 
-  double cSound = sqrt(enzo_config->physics_fluid_props_gamma * 
+  double gamma = 5.0/3.0;
+  double cSound = sqrt(gamma * 
                        enzo_constants::kboltz*T/(mu_mean*enzo_constants::mass_hydrogen)) / 1e5; // km/s
 
   // fading radius of a supernova, using gas energy of the host cell and ideal gas approximations
