@@ -229,6 +229,11 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
 
   compute_temperature.compute(enzo_block);
 
+  // compute the cooling time
+  EnzoComputeCoolingTime compute_cooling_time;
+
+  compute_cooling_time.compute(enzo_block);
+
   const GrackleChemistryData * grackle_chem = enzo::grackle_chemistry();
   const int primordial_chemistry = (grackle_chem == nullptr) ?
     0 : grackle_chem->get<int>("primordial_chemistry");
