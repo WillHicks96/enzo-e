@@ -458,6 +458,8 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
           py[io] = ly + (iy - gy + 0.5) * dy;
           pz[io] = lz + (iz - gz + 0.5) * dz;
 
+          CkPrintf("MethodStarMakerSTARSS -- forming star particle at position (x, y, z) = (%f, %f, %f)\n", px[io],py[io],pz[io]);
+
           pvx = (enzo_float *) particle.attribute_array(it, ia_vx, ib);
           pvy = (enzo_float *) particle.attribute_array(it, ia_vy, ib);
           pvz = (enzo_float *) particle.attribute_array(it, ia_vz, ib);

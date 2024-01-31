@@ -407,6 +407,16 @@ void EnzoMethodFeedbackSTARSS::add_accumulate_fields(EnzoBlock * enzo_block) thr
   enzo_float * vx = (enzo_float *) field.values("velocity_x");
   enzo_float * vy = (enzo_float *) field.values("velocity_y");
   enzo_float * vz = (enzo_float *) field.values("velocity_z");
+
+  // PopIII metal fields
+  enzo_float * mf3    = field.is_field("PopIII_metal_density") ? 
+          (enzo_float*) field.values("PopIII_metal_density") : NULL;
+  enzo_float * mf3_SNe   = field.is_field("PopIII_SNe_metal_density") ? 
+          (enzo_float*) field.values("PopIII_SNe_metal_density") : NULL;
+  enzo_float * mf3_HNe   = field.is_field("PopIII_HNe_metal_density") ? 
+          (enzo_float*) field.values("PopIII_HNe_metal_density") : NULL;
+  enzo_float * mf3_PISNe  = field.is_field("PopIII_PISNe_metal_density") ? 
+          (enzo_float*) field.values("PopIII_PISNe_metal_density") : NULL;
   
   enzo_float * d_dep  = (enzo_float *) field.values(i_d_dep);
   enzo_float * te_dep = (enzo_float *) field.values(i_te_dep);
@@ -445,6 +455,7 @@ void EnzoMethodFeedbackSTARSS::add_accumulate_fields(EnzoBlock * enzo_block) thr
         if (d_dep_a[i] != 0) { // if any deposition
 
           double d_old = d[i];
+          double mf_old = mf[i];
           
           // Could have a race condition here where if one particle updates the density of a cell,
           // that update won't get communicated to the other block until the end of the cycle.
@@ -474,6 +485,9 @@ void EnzoMethodFeedbackSTARSS::add_accumulate_fields(EnzoBlock * enzo_block) thr
           double M_scale_tot = d_new / d_old;
           double M_scale_shell = d_shell_a[i]/d[i];
 
+          double mf_new = mf[i];
+          double M_scale_metal = mf_new / mf_old;
+
           // Here, te_dep_a and ge_dep_a are carrying "energy density" (not specific energy)
           // and vx_dep_a, vy_dep_a, and vy_dep_a are carrying velocity of the shell (not momentum density)
  
@@ -487,6 +501,12 @@ void EnzoMethodFeedbackSTARSS::add_accumulate_fields(EnzoBlock * enzo_block) thr
           EnzoMethodStarMaker::rescale_densities(enzo_block, i, M_scale_tot);
           // undo rescaling of metal_density field
           mf[i] /= M_scale_tot;
+
+          // rescale PopIII metal fields (if they exist)
+          if (mf3)             mf3[i] *= M_scale_metal/M_scale_tot;
+          if (mf3_SNe)     mf3_SNe[i] *= M_scale_metal/M_scale_tot;
+          if (mf3_HNe)     mf3_HNe[i] *= M_scale_metal/M_scale_tot;
+          if (mf3_PISNe) mf3_PISNe[i] *= M_scale_metal/M_scale_tot;
 
          }        
         
@@ -854,6 +874,16 @@ void EnzoMethodFeedbackSTARSS::deposit_feedback (Block * block,
          (enzo_float *) field.values("DII_density") : NULL;
   enzo_float * dHDI   = field.is_field("HDI_density") ? 
          (enzo_float *) field.values("HDI_density") : NULL;
+
+  // PopIII metal fields
+  enzo_float * mf3    = field.is_field("PopIII_metal_density") ? 
+          (enzo_float*) field.values("PopIII_metal_density") : NULL;
+  enzo_float * mf3_SNe   = field.is_field("PopIII_SNe_metal_density") ? 
+          (enzo_float*) field.values("PopIII_SNe_metal_density") : NULL;
+  enzo_float * mf3_HNe   = field.is_field("PopIII_HNe_metal_density") ? 
+          (enzo_float*) field.values("PopIII_HNe_metal_density") : NULL;
+  enzo_float * mf3_PISNe  = field.is_field("PopIII_PISNe_metal_density") ? 
+          (enzo_float*) field.values("PopIII_PISNe_metal_density") : NULL;
 
   // "deposit" fields that hold running total for all exploding particles in this block
   enzo_float *  d_dep_tot = (enzo_float *) field.values(i_d_dep);
@@ -1437,7 +1467,10 @@ void EnzoMethodFeedbackSTARSS::deposit_feedback (Block * block,
     double cell_mass = d_new*cell_volume_code;
     double M_scale = d_new / d_old;
 
+    double mf_old = mf[i];
     mf[i] += mf_dep[i]; 
+    double mf_new = mf[i];
+    double M_scale_metal = mf_new / mf_old;
 
     // need to rescale specific energies to account for added mass
     te[i] = te[i]/M_scale + te_dep[i]/d_new;
@@ -1446,14 +1479,20 @@ void EnzoMethodFeedbackSTARSS::deposit_feedback (Block * block,
     vx[i] += vx_dep[i];
     vy[i] += vy_dep[i];
     vz[i] += vz_dep[i];
+
     // Rescale color fields to account for new densities.
     // Don't need to rescale metal_density because we already deposited
     // into the metal_density field.
-
-    EnzoMethodStarMaker::rescale_densities(enzo_block, i, d_new/d_old);
+    EnzoMethodStarMaker::rescale_densities(enzo_block, i, M_scale);
 
     // undo rescaling of metal_density
-    mf[i] /= (d_new/d_old);
+    mf[i] /= M_scale;
+
+    // rescale PopIII metal fields (if they exist)
+    if (mf3)             mf3[i] *= M_scale_metal/M_scale;
+    if (mf3_SNe)     mf3_SNe[i] *= M_scale_metal/M_scale;
+    if (mf3_HNe)     mf3_HNe[i] *= M_scale_metal/M_scale;
+    if (mf3_PISNe) mf3_PISNe[i] *= M_scale_metal/M_scale;
 
     // add deposited quantities to fields that track depositions
     // of all star particles in the block this cycle
