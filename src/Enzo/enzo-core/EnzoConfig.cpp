@@ -199,7 +199,6 @@ EnzoConfig::EnzoConfig() throw ()
   initial_IG_use_gas_particles(false),      // Set up gas by depositing baryonic particles to grid
   // EnzoMethodCheck
   method_check_num_files(1),
-  method_check_ordering("order_morton"),
   method_check_dir(),
   method_check_monitor_iter(0),
   method_check_include_ghosts(false),
@@ -254,6 +253,7 @@ EnzoConfig::EnzoConfig() throw ()
   method_feedback_analytic_SNR_shell_mass(true),
   method_feedback_fade_SNR(true),
   method_feedback_NEvents(-1),
+  method_feedback_radiation(true),
   // EnzoMethodInference
   method_inference_level_base(0),
   method_inference_level_array(0),
@@ -262,7 +262,15 @@ EnzoConfig::EnzoConfig() throw ()
   method_inference_array_size(),
   method_inference_field_group(),
   method_inference_overdensity_threshold(0),
-  method_feedback_radiation(true),
+  method_inference_model(),
+  method_inference_starnet_repeatable(false),
+  method_inference_starnet_critical_metallicity(3.1e-6),
+  method_inference_starnet_feedback(true),
+  method_inference_starnet_radius_modifier(0.2),
+  method_inference_starnet_S1(true),
+  method_inference_starnet_S2(true),
+  // EnzoMethodFBNetDeposit
+  method_fbnet_deposit_hot_deposit(false),
   // EnzoMethodM1Closure
   method_m1_closure(false),
   method_m1_closure_N_groups(1), // # of frequency bins
@@ -611,7 +619,6 @@ void EnzoConfig::pup (PUP::er &p)
   p | initial_merge_sinks_test_particle_data_filename;
 
   p | method_check_num_files;
-  p | method_check_ordering;
   p | method_check_dir;
   p | method_check_monitor_iter;
   p | method_check_include_ghosts;
@@ -679,6 +686,15 @@ void EnzoConfig::pup (PUP::er &p)
   PUParray(p,method_inference_array_size,3);
   p | method_inference_field_group;
   p | method_inference_overdensity_threshold;
+  p | method_inference_model;
+  p | method_inference_starnet_repeatable;
+  p | method_inference_starnet_critical_metallicity;
+  p | method_inference_starnet_feedback;
+  p | method_inference_starnet_radius_modifier;
+  p | method_inference_starnet_S1;
+  p | method_inference_starnet_S2;
+
+  p | method_fbnet_deposit_hot_deposit;
 
   p | method_star_maker_flavor;
   p | method_star_maker_use_altAlpha;
@@ -859,6 +875,7 @@ void EnzoConfig::read(Parameters * p) throw()
   read_method_gravity_(p);
   read_method_heat_(p);
   read_method_inference_(p);
+  read_method_fbnet_deposit_(p);
   read_method_merge_sinks_(p);
   read_method_pm_deposit_(p);
   read_method_pm_update_(p);
@@ -1959,8 +1976,6 @@ void EnzoConfig::read_method_check_(Parameters * p)
 
   method_check_num_files = p->value_integer
     ("num_files",1);
-  method_check_ordering = p->value_string
-    ("ordering","order_morton");
 
   if (p->type("dir") == parameter_string) {
     method_check_dir.resize(1);
@@ -2025,6 +2040,35 @@ void EnzoConfig::read_method_inference_(Parameters* p)
 
   method_inference_overdensity_threshold = p->value_float
     ("Method:inference:overdensity_threshold",0.0);
+
+  method_inference_model = p->value_string
+    ("Method:inference:model", "starnet");  
+
+  method_inference_starnet_repeatable = p->value_logical
+    ("Method:inference:starnet_repeatable", false);
+
+  method_inference_starnet_critical_metallicity = p->value_float
+    ("Method:inference:starnet_critical_metallicity", 3.1e-6);
+
+  method_inference_starnet_feedback = p->value_logical
+    ("Method:inference:starnet_feedback", true);
+
+  method_inference_starnet_radius_modifier = p->value_float
+    ("Method:inference:starnet_radius_modifier", 0.2);
+
+  method_inference_starnet_S1 = p->value_logical
+    ("Method:inference:starnet_S1",true);
+
+  method_inference_starnet_S2 = p->value_logical
+    ("Method:inference:starnet_S2",true);
+}
+
+//----------------------------------------------------------------------
+
+void EnzoConfig::read_method_fbnet_deposit_(Parameters * p)
+{
+  method_fbnet_deposit_hot_deposit = p->value_logical
+    ("Method:fbnet_deposit:hot_deposit",false);
 }
 
 //----------------------------------------------------------------------

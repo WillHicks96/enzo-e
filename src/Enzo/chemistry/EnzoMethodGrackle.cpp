@@ -162,7 +162,6 @@ void EnzoMethodGrackle::compute ( Block * block) throw()
   return;
 
 }
-
 //----------------------------------------------------------------------------
 
 void EnzoMethodGrackle::update_grackle_density_fields(

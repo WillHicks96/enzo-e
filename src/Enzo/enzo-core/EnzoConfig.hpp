@@ -257,7 +257,6 @@ public: // interface
 
       // EnzoMethodCheck
       method_check_num_files(1),
-      method_check_ordering("order_morton"),
       method_check_dir(),
       method_check_monitor_iter(0),
       method_check_include_ghosts(false),
@@ -303,6 +302,15 @@ public: // interface
       method_inference_array_size(),
       method_inference_field_group(),
       method_inference_overdensity_threshold(0),
+      method_inference_model(),
+      method_inference_starnet_repeatable(false),
+      method_inference_starnet_critical_metallicity(3.1e-6),
+      method_inference_starnet_feedback(true),
+      method_inference_starnet_radius_modifier(0.2),
+      method_inference_starnet_S1(true),
+      method_inference_starnet_S2(true),
+      ///EnzoMethodFBNetDeposit
+      method_fbnet_deposit_hot_deposit(false),
       /// EnzoMethodStarMaker
       method_star_maker_flavor(""),
       method_star_maker_use_density_threshold(false),           // check above density threshold before SF
@@ -450,7 +458,6 @@ public: // interface
 protected: // methods
 
   void read_adapt_(Parameters *);
-
   void read_field_(Parameters *);
 
   //--------------------
@@ -489,6 +496,7 @@ protected: // methods
   void read_method_gravity_(Parameters *);
   void read_method_heat_(Parameters *);
   void read_method_inference_(Parameters *);
+  void read_method_fbnet_deposit_(Parameters *);
   void read_method_merge_sinks_(Parameters *);
   void read_method_pm_deposit_(Parameters *);
   void read_method_pm_update_(Parameters *);
@@ -773,7 +781,6 @@ public: // attributes
 
   /// EnzoMethodCheck
   int                        method_check_num_files;
-  std::string                method_check_ordering;
   std::vector<std::string>   method_check_dir;
   int                        method_check_monitor_iter;
   bool                       method_check_include_ghosts;
@@ -825,6 +832,16 @@ public: // attributes
   int                        method_inference_array_size[3];
   std::string                method_inference_field_group;
   float                      method_inference_overdensity_threshold;
+  std::string                method_inference_model;
+  bool                       method_inference_starnet_repeatable;
+  double                     method_inference_starnet_critical_metallicity;
+  bool                       method_inference_starnet_feedback;
+  double                     method_inference_starnet_radius_modifier;
+  bool                       method_inference_starnet_S1;
+  bool                       method_inference_starnet_S2;
+
+  /// EnzoMethodFBNetDeposit
+  bool                       method_fbnet_deposit_hot_deposit;
 
   /// EnzoMethodStarMaker
   std::string               method_star_maker_flavor;
@@ -910,7 +927,6 @@ public: // attributes
   double                     method_background_acceleration_center[3];
   double                     method_background_acceleration_angular_momentum[3];
   bool                       method_background_acceleration_apply_acceleration;
-
 
   /// EnzoMethodPmDeposit
 

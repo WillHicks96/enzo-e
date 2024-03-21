@@ -146,19 +146,8 @@ void EnzoBlock::initialize(const EnzoConfig * enzo_config)
 } // void initialize()
 
 //----------------------------------------------------------------------
-
-EnzoBlock::EnzoBlock (CkMigrateMessage *m)
-  : CBase_EnzoBlock (m)
-{
-  state_ = std::make_shared<EnzoState>(0, 0.0, 0.0, false);
-
-  TRACE("CkMigrateMessage");
-  // EnzoSimulation[0] counts migrated Blocks
-  proxy_enzo_simulation[0].p_method_balance_check();
-}
-
-EnzoBlock::EnzoBlock( process_type ip_source,  MsgType msg_type)
-  : CBase_EnzoBlock (ip_source, msg_type)
+EnzoBlock::EnzoBlock(MsgType msg_type)
+  : CBase_EnzoBlock (msg_type)
 {
   state_ = std::make_shared<EnzoState>(0, 0.0, 0.0, false);
 #ifdef TRACE_BLOCK
@@ -173,6 +162,16 @@ EnzoBlock::EnzoBlock( process_type ip_source,  MsgType msg_type)
   } else if (msg_type == MsgType::msg_refine) {
     set_msg_refine(enzo::simulation()->get_msg_refine(thisIndex));
   }
+}
+
+EnzoBlock::EnzoBlock (CkMigrateMessage *m)
+  : CBase_EnzoBlock (m)
+{
+  state_ = std::make_shared<EnzoState>(0, 0.0, 0.0, false);
+
+  TRACE("CkMigrateMessage");
+  // EnzoSimulation[0] counts migrated Blocks
+  proxy_enzo_simulation[0].p_method_balance_check();
 }
 
 //----------------------------------------------------------------------

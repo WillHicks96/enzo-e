@@ -101,6 +101,8 @@ void EnzoSimulation::pup (PUP::er &p)
   p | sync_infer_create_;
   p | sync_infer_done_;
   p | infer_count_arrays_;
+  p | sync_fbnet_count_;
+  p | sync_fbnet_update_;
   p | check_num_files_;
   p | check_ordering_;
   p | check_directory_;
@@ -128,8 +130,7 @@ void EnzoSimulation::refine_create_block(MsgRefine * msg)
   }
   msg_refine_map_[index] = msg;
 
-  int ip = CkMyPe();
-  enzo::block_array()[index].insert(ip,MsgType::msg_refine,ip);
+  enzo::block_array()[index].insert(MsgType::msg_refine,CkMyPe());
 }
 
 //----------------------------------------------------------------------
@@ -263,4 +264,3 @@ const Factory * EnzoSimulation::factory() const throw()
 }
 
 //======================================================================
-

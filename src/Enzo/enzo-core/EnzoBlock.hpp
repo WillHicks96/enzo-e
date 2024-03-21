@@ -93,7 +93,7 @@ public: // interface
 
   /// Initialize the EnzoBlock chare array
 
-  EnzoBlock ( process_type ip_source, MsgType msg_type );
+  EnzoBlock ( MsgType msg_type );
   /// Initialize EnzoBlock using MsgRefine returned by creating process
   void set_msg_refine(MsgRefine * msg);
   void set_msg_check(EnzoMsgCheck * msg);
@@ -198,16 +198,21 @@ public: /// entry methods
   /// Exit EnzoMethodInference
   void p_method_infer_exit();
 
+  void p_method_fbnet_update_mesh(CkReductionMsg * msg); 
+  void p_method_fbnet_exit();
+
+  /// reduction method for concatenating sphere lists
+  CkReductionMsg * r_method_infer_concatenate_sphere_list(int n, CkReductionMsg ** msgs);
   //--------------------------------------------------
   /// Checkpoint
   //--------------------------------------------------
 
   /// Call to Block array to self-identify as "first" when writing
-  /// checkpoint files based on Ordering object
-  void p_check_write_first(int num_files, std::string ordering, std::string);
+  /// checkpoint files based on Block::order_index_
+  void p_check_write_first(int num_files, std::string name_dir);
 
   /// Call to single Block to return data for checkpoint
-  void p_check_write_next(int num_files, std::string ordering);
+  void p_check_write_next(int num_files);
 
   /// Exit EnzoMethodCheck
   void p_check_done();
@@ -345,7 +350,7 @@ protected: // methods
 
   /// Create EnzoMsgCheck, returning file index
   int create_msg_check_
-  ( EnzoMsgCheck ** msg_check, int num_files, std::string ordering,
+  ( EnzoMsgCheck ** msg_check, int num_files,
     std::string name_dir = "", bool * is_first = nullptr);
 
   /// Initialize restart data in Block

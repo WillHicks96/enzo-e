@@ -229,6 +229,11 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
 
   compute_temperature.compute(enzo_block);
 
+  // compute the cooling time
+  EnzoComputeCoolingTime compute_cooling_time;
+
+  compute_cooling_time.compute(enzo_block);
+
   const GrackleChemistryData * grackle_chem = enzo::grackle_chemistry();
   const int primordial_chemistry = (grackle_chem == nullptr) ?
     0 : grackle_chem->get<int>("primordial_chemistry");
@@ -269,7 +274,7 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
         double mean_particle_mass = mu * enzo_constants::mass_hydrogen;
         double ndens = rho_cgs / mean_particle_mass;
 
-        double cell_mass  = density[i] * cell_volume;
+        double cell_mass  = density[i] * cell_volume; // code units
         double metallicity = (metal) ? metal[i]/density[i]/enzo_constants::metallicity_solar : 0.0;
 
         //
@@ -452,6 +457,8 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
           px[io] = lx + (ix - gx + 0.5) * dx;
           py[io] = ly + (iy - gy + 0.5) * dy;
           pz[io] = lz + (iz - gz + 0.5) * dz;
+
+          CkPrintf("MethodStarMakerSTARSS -- forming star particle at position (x, y, z) = (%f, %f, %f)\n", px[io],py[io],pz[io]);
 
           pvx = (enzo_float *) particle.attribute_array(it, ia_vx, ib);
           pvy = (enzo_float *) particle.attribute_array(it, ia_vy, ib);
