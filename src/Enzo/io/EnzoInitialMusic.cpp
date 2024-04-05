@@ -5,7 +5,10 @@
 /// @date     2017-06-23
 /// @brief    Read initial conditions from HDF5
 ///           (multi-scale cosmological initial conditions)
-#include "enzo.hpp"
+
+#include "Enzo/enzo.hpp"
+#include "Enzo/io/io.hpp"
+
 #include <chrono>
 #include <thread>
 
@@ -234,7 +237,6 @@ void EnzoInitialMusic::enforce_block
       
     } else if (type_data == type_double) {
 
-      CkPrintf ("DEBUG_INITIAL_HDF5 %g\n",data_double[gx+mx*(gy+my*gz)]);
       copy_field_data_to_array_
 	(array,data_double,mx,my,mz,nx,ny,nz,gx,gy,gz,n4,IX,IY);
     }

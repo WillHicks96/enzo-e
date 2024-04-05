@@ -159,8 +159,10 @@ void MethodOutput::compute ( Block * block) throw()
     int * counter = scalar_int->value(cello::scalar_descr_int(),is_count_);
     (*counter)++;
     bool already_exists = false;
+    const int cycle   = block->state()->cycle();
+    const double time = block->state()->time();
     std::string path_name = cello::create_directory
-      (&path_name_,(*counter),block->cycle(),block->time(),already_exists);
+      (&path_name_,(*counter),cycle,time,already_exists);
   }
 
   CkCallback callback(CkIndex_Block::r_method_output_continue(nullptr),
@@ -213,8 +215,8 @@ void MethodOutput::compute_continue(Block * block)
 
   // Open *.block_list file and save FILE pointer
   const int count   = file_count_(block);
-  const int cycle   = block->cycle();
-  const double time = block->time();
+  const int cycle   = block->state()->cycle();
+  const double time = block->state()->time();
   std::string file_name = cello::expand_name
     (&file_name_,count,cycle,time);
 
@@ -230,7 +232,10 @@ void MethodOutput::compute_continue(Block * block)
 
   // Restore working directory now that files are created
   // (changed for block_list and file_list files in file_open_())
-  chdir ("..");
+  if (chdir ("..") != 0) {
+    ERROR("MethodOutput::compute_continue",
+          "error occured while changing current directory to parent dir");
+  }
 
   // Create output message
   MsgOutput * msg_output = new MsgOutput(bt,this,file);
@@ -396,7 +401,6 @@ void MethodOutput::compute_done (Block * block)
 void Block::r_method_output_done(CkReductionMsg *msg)
 {
   delete msg;
-  MethodOutput * method = static_cast<MethodOutput*> (this->method());
   this->compute_done();
 }
 
@@ -420,13 +424,15 @@ FileHdf5 * MethodOutput::file_open_(Block * block, int a3[3])
   ScalarData<int> * scalar_int = block->data()->scalar_data_int();
   int * counter = scalar_int->value(cello::scalar_descr_int(),is_count_);
 
+  const auto cycle = block->state()->cycle();
+  const auto time  = block->state()->time();
   std::string path_name = cello::expand_name
-    (&path_name_,(*counter),block->cycle(),block->time());
+    (&path_name_,(*counter),cycle,time);
 
   // Generate file name
   int count = file_count_(block);
   std::string file_name = cello::expand_name
-    (&file_name_,count,block->cycle(),block->time());
+    (&file_name_,count,cycle,time);
 
   if (block->index().is_root()) {
     Monitor::instance()->print
@@ -439,7 +445,11 @@ FileHdf5 * MethodOutput::file_open_(Block * block, int a3[3])
   file->file_create();
 
   // Change directory for file_list and block_list files
-  chdir (path_name.c_str());
+  if (chdir (path_name.c_str()) != 0) {
+    ERROR1("MethodOutput::file_open_",
+           "Error occured while changing directory to \"%s\"",
+           path_name.c_str());
+  }
 
   return file;
 }
@@ -539,7 +549,7 @@ void MethodOutput::file_write_block_
 
   FieldData * field_data = data->field_data();
 
-  for (int i_f=0; i_f<field_list_.size(); i_f++) {
+  for (std::size_t i_f=0; i_f<field_list_.size(); i_f++) {
     const int index_field = field_list_[i_f];
     IoFieldData * io_field_data = factory_->create_io_field_data();
 
@@ -573,7 +583,7 @@ void MethodOutput::file_write_block_
 
   Particle particle = data->particle();
 
-  for (int i_p=0; i_p<particle_list_.size(); i_p++) {
+  for (std::size_t i_p=0; i_p<particle_list_.size(); i_p++) {
 
     // Get particle type for it'th element of the particle output list
     const int it = particle_list_[i_p];

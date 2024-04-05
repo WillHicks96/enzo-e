@@ -10,8 +10,9 @@
 ///             max(density_threshold_,(1-max_mass_fraction)*density),
 ///             and adds mass and momentum lost by the gas to the sink particle.
 
-#include "cello.hpp"
-#include "enzo.hpp"
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
+#include "Enzo/particle/particle.hpp"
 
 //-------------------------------------------------------------------------------------------
 
@@ -44,7 +45,7 @@ void EnzoMethodThresholdAccretion::pup (PUP::er &p)
 void EnzoMethodThresholdAccretion::compute (Block * block) throw()
 {
 
-  if (enzo::simulation()->cycle() == enzo::config()->initial_cycle)
+  if (enzo::simulation()->state()->cycle() == enzo::config()->initial_cycle)
     do_checks_(block);
 
   if (block->is_leaf()) {

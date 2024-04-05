@@ -7,9 +7,11 @@
 
 //----------------------------------------------------------------------
 
-#include "cello.hpp"
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
+#include "Enzo/hydro-mhd/hydro-mhd.hpp"
 
-#include "enzo.hpp"
+#include "Enzo/hydro-mhd/ppml_fortran/ppml_fortran.hpp" // FORTRAN_NAME(calc_dt_ppml)
 
 //----------------------------------------------------------------------
 
@@ -59,7 +61,7 @@ void EnzoMethodPpml::compute ( Block * block ) throw()
 
   EnzoBlock * enzo_block = enzo::block(block);
 
-  enzo_block->SolveMHDEquations ( block->dt() );
+  enzo_block->SolveMHDEquations ( block->state()->dt() );
 
   enzo_block->compute_done();
 
@@ -101,14 +103,17 @@ double EnzoMethodPpml::timestep (Block * block) throw()
 	  ! (comoving_coordinates_ && (cosmology == NULL)) );
 
   if (cosmology) {
-    cosmology->compute_expansion_factor (&cosmo_a, &cosmo_dadt,enzo_block->time());
+    const auto time = enzo_block->state()->time();
+    cosmology->compute_expansion_factor (&cosmo_a, &cosmo_dadt, time);
   }
   //  float afloat = float(a);
  
   /* 1) Compute Courant condition for baryons. */
-  const int in = cello::index_static();
 
-  if (EnzoBlock::NumberOfBaryonFields[in] > 0) {
+  Field field = enzo_block->data()->field();
+  if (field.num_permanent() > 0) { // TODO: revisit if-clause. This could be
+                                   // improved. (plus we probably want to
+                                   // report an error when false)
  
     /* Find fields: density, total energy, velocity1-3. */
  
@@ -137,8 +142,6 @@ double EnzoMethodPpml::timestep (Block * block) throw()
     // }
 
     /* Call fortran routine to do calculation. */
- 
-    Field field = enzo_block->data()->field();
 
     enzo_float * d  = (enzo_float *) field.values("density");
     enzo_float * vx = (enzo_float *) field.values("velox");

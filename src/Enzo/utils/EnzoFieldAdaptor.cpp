@@ -5,9 +5,9 @@
 /// @date     2022-04-01
 /// @brief    Implements the EnzoFieldAdaptor class
 
-#include "cello.hpp"
-
-#include "enzo.hpp"
+#include "Enzo/utils/utils.hpp"
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
 
 //----------------------------------------------------------------------
 
@@ -68,7 +68,7 @@ namespace enzo_field_adaptor_detail {
   double BlockWrapper::compute_time() const noexcept
   {
     if (index_history_ == 0) {
-      return block_->time();
+      return block_->state()->time();
     } else {
       return field_.history_time(index_history_);
     }

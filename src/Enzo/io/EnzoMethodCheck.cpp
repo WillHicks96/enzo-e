@@ -5,10 +5,12 @@
 /// @date     2202-02-12
 /// @brief    Implements the EnzoMethodCheck class
 
-#include "cello.hpp"
-#include "enzo.hpp"
-#include "charm.hpp"
-#include "charm_enzo.hpp"
+#include "Cello/cello.hpp"
+#include <charm.hpp>
+#include "Enzo/enzo.hpp"
+#include "Enzo/charm_enzo.hpp"
+#include "Enzo/io/io.hpp"
+
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -73,7 +75,7 @@ void EnzoMethodCheck::pup (PUP::er &p)
 
 void EnzoMethodCheck::compute ( Block * block) throw()
 {
-  const bool is_first_cycle = (cello::simulation()->cycle() ==
+  const bool is_first_cycle = (cello::simulation()->state()->cycle() ==
                                cello::simulation()->initial_cycle());
   if (!is_first_cycle) {
     CkCallback callback(CkIndex_EnzoSimulation::r_method_check_enter(NULL),0,
@@ -341,8 +343,8 @@ std::string Simulation::file_create_dir_
 (std::vector<std::string> directory_format, bool & already_exists)
 {
   const int counter = Simulation::file_counter_++;
-  const int cycle = cello::simulation()->cycle();
-  const double time = cello::simulation()->time();
+  const int cycle = cello::simulation()->state()->cycle();
+  const double time = cello::simulation()->state()->time();
 
   cello::create_directory
     (&directory_format, counter,cycle,time,already_exists);

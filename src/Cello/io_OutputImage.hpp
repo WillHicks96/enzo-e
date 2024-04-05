@@ -12,11 +12,12 @@ class Factory;
 
 enum mesh_color_type {
   mesh_color_unknown,
-  mesh_color_level,
-  mesh_color_process,
-  mesh_color_neighbor,
   mesh_color_age,
-  mesh_color_order
+  mesh_color_level,
+  mesh_color_neighbor,
+  mesh_color_order,
+  mesh_color_process,
+  mesh_color_scalar
 };
 
 class OutputImage : public Output {
@@ -43,6 +44,7 @@ public: // functions
 	      std::string image_reduce_type,
 	      std::string image_mesh_color,
 	      std::string image_mesh_order,
+	      std::string image_color_scalar,
 	      std::string image_color_particle_attribute,
 	      double      image_lower[],
 	      double      image_upper[],
@@ -68,11 +70,11 @@ public: // functions
       op_reduce_(reduce_unknown),
       mesh_color_type_(mesh_color_unknown),
       mesh_color_order_(),
+      image_color_scalar_(),
       color_particle_attribute_(""),
       axis_(axis_all),
       min_value_(std::numeric_limits<double>::max()),
       max_value_(-std::numeric_limits<double>::max()),
-      png_(NULL),
       image_type_(""),
       face_rank_(0),
       image_log_(false),
@@ -103,9 +105,28 @@ public: // virtual functions
   virtual void init () throw();
 
   /// Open (or create) a file for IO
-  virtual void open () throw();
+  ///
+  /// @note
+  /// In practice, this method performs a no-op. It's mostly useful in
+  /// situations where we can write to a file in chunks. However, the current
+  /// implementation constructs the image in memory and then writes the image
+  /// all in one shot. We may revisit this in the future if we elect to write
+  /// the image in chunks.
+  ///
+  /// @note
+  /// In general, writing a PNG file in chunks is non-trivial since the file
+  /// organizes data in full scanlines. Moreover, the fact that we need to know
+  /// the minimum and maximum values that we want to map to colors before we
+  /// write anything to disk significantly limits the contexts where it would
+  /// be useful to write the file in chunks
+  virtual void open () throw()
+  { /* EMPTY */ }
 
   /// Close file for IO
+  ///
+  /// @note
+  /// In practice this opens the output file, writes the image (that is already
+  /// assembled in memory) to the file and then closes the file
   virtual void close () throw();
 
   /// Cleanup after output
@@ -146,12 +167,6 @@ private: // functions
 
   bool is_active_ (const Block * block) const;
 
-  /// Create the png file object
-  void png_create_ (std::string filename) throw();
-
-  /// Delete the png object
-  void png_close_() throw();
-
   /// Create the image data object
   void image_create_ () throw();
 
@@ -176,8 +191,6 @@ private: // functions
   void reduce_box_filled_(double * data, int ixm, int ixp, int iym, int iyp, 
 		    double value, double alpha=1.0);
 
-  double data_(int i) const ;
-
 private: // attributes
 
   /// Color map
@@ -198,6 +211,9 @@ private: // attributes
   /// Block int Scalar for ordering when mesh_color_type_ = mesh_color_order
   std::string mesh_color_order_;
 
+  /// Scalar associated with mesh_color_type = mesh_color_scalar
+  std::string image_color_scalar_;
+
   /// Particle attribute defining color (default -1: constant)
   std::string color_particle_attribute_;
 
@@ -211,9 +227,6 @@ private: // attributes
 
   /// Current image size in pixels
   int image_size_[2];
-  
-  /// Current pngwriter
-  pngwriter * png_;
 
   /// Image type: data or mesh
   std::string image_type_;

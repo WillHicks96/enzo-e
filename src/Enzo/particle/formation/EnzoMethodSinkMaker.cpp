@@ -7,9 +7,11 @@
 ///             the method described in Krumholz et al 2004, ApJ, 611, 399 and
 ///             Federrath et al 2010, ApJ, 713, 269.
 
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
+#include "Enzo/particle/particle.hpp"
+
 #include <random>
-#include "cello.hpp"
-#include "enzo.hpp"
 
 //-------------------------------------------------------------------
 
@@ -97,7 +99,9 @@ void EnzoMethodSinkMaker::pup (PUP::er &p)
 
 void EnzoMethodSinkMaker::compute ( Block *block) throw()
 {
-  if (enzo::simulation()->cycle() == enzo::config()->initial_cycle)
+  const auto cycle = enzo::simulation()->state()->cycle();
+  const auto cycle_initial = enzo::config()->initial_cycle;
+  if ( cycle == cycle_initial )
     do_checks_(block);
 
   // Only call compute_ if block is on maximum refinement level.
@@ -191,7 +195,7 @@ void EnzoMethodSinkMaker::compute_ ( Block *block) throw()
 
   // Get gravitational constant in code units
   const double const_G =
-    enzo_constants::grav_constant * enzo::units()->density() *
+    enzo::grav_constant_cgs() * enzo::units()->density() *
     enzo::units()->time() * enzo::units()->time();
   
   // Get density threshold in code units for this cycle (value will change in
@@ -216,7 +220,7 @@ void EnzoMethodSinkMaker::compute_ ( Block *block) throw()
   // IDs and will be used for the seeds for the random number generator which generates the
   // initial particle positions.
   const uint64_t global_cell_index_start =
-    (enzo::simulation()->cycle() * n_blocks + global_block_index) * n_cells_per_block;
+    (enzo::simulation()->state()->cycle() * n_blocks + global_block_index) * n_cells_per_block;
 
   // Will be used to generate the random offsets
   std::uniform_real_distribution<double> distribution (0.0,1.0);
@@ -313,7 +317,7 @@ void EnzoMethodSinkMaker::compute_ ( Block *block) throw()
 	// Set creation time equal to current time
 	pcreation_time     =
 	  (enzo_float *) particle.attribute_array(it, ia_creation_time, ibatch);
-	pcreation_time[ip_batch * dcreation_time] = enzo::block(block)->time();
+	pcreation_time[ip_batch * dcreation_time] = enzo::block(block)->state()->time();
 
 	// Set ID to be the global cell index
 	pid = (int64_t * ) particle.attribute_array(it, ia_id, ibatch);

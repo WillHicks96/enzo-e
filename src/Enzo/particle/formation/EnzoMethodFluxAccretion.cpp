@@ -6,8 +6,9 @@
 /// @brief      Computes accretion rates according to "Flux Accretion" method, as
 ///             described in Section 5.3 of Bleuler, A & Teyssier, R 2004; MNRAS, 445, 4015-4036
 
-#include "cello.hpp"
-#include "enzo.hpp"
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
+#include "Enzo/particle/particle.hpp"
 
 //------------------------------------------------------------------
 
@@ -52,7 +53,9 @@ void EnzoMethodFluxAccretion::pup (PUP::er &p)
 void EnzoMethodFluxAccretion::compute (Block * block) throw()
 {
 
-  if (enzo::simulation()->cycle() == enzo::config()->initial_cycle)
+  const auto cycle_simulation = enzo::simulation()->state()->cycle();
+  const auto cycle_initial = enzo::config()->initial_cycle;
+  if ( cycle_simulation == cycle_initial )
     do_checks_(block);
 
   if (block->is_leaf()) {

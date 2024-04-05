@@ -10,8 +10,10 @@
 ///     adapted from the algorithm described in Hopkins et al. 
 ///     (2018, MNRAS, 480, 800)
 
-#include "cello.hpp"
-#include "enzo.hpp"
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
+#include "Enzo/particle/particle.hpp"
+
 #include <time.h>
 
 // #define DEBUG_SF_CRITERIA
@@ -85,7 +87,7 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
 
   const int rank = cello::rank();
 
-  double dt    = enzo_block->dt; // timestep in code units
+  auto dt = enzo_block->state()->dt(); // timestep in code units
   enzo_float cosmo_a = 1.0;
   enzo_float cosmo_dadt = 0.0;
   EnzoPhysicsCosmology * cosmology = enzo::cosmology();
@@ -210,8 +212,8 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
     if (cosmology) {
       enzo_float cosmo_a = 1.0;
       enzo_float cosmo_dadt = 0.0;
-      double dt   = enzo_block->timestep();
-      double time = enzo_block->time();
+      double dt   = enzo_block->state()->dt();
+      double time = enzo_block->state()->time();
       cosmology-> compute_expansion_factor (&cosmo_a,&cosmo_dadt,time+0.5*dt);
       for (int i=0; i<mx*my*mz; i++) potential[i] *= cosmo_a;
     }
@@ -353,7 +355,7 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
         #endif 
         
         //free fall time in code units
-        double tff = sqrt(3*cello::pi/(32*enzo_constants::grav_constant*density[i]*rhounit))/tunit;        
+        double tff = sqrt(3*cello::pi/(32*enzo::grav_constant_cgs()*density[i]*rhounit))/tunit;        
        /* Determine Mass of new particle
                 WARNING: this removes the mass of the formed particle from the
                          host cell.  If your simulation has very small (>15 Msun) baryon mass
@@ -425,7 +427,7 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
         #endif
         } 
           for (int n=0; n<n_newStars; n++) {
-            double ctime = enzo_block->time(); 
+            double ctime = enzo_block->state()->time(); 
             if (n > 0) {
               double mod = n * 3.0 * tff/tunit/n_newStars;
               ctime += mod;

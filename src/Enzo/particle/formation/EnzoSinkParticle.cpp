@@ -8,8 +8,9 @@
 ///         as well as associated methods for computing accretion rates and
 ///         reading and writing to / from the particle attribute arrays.
 
-#include "cello.hpp"
-#include "enzo.hpp"
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
+#include "Enzo/particle/particle.hpp"
 
 EnzoSinkParticle::EnzoSinkParticle
 (Block * block,
@@ -258,7 +259,7 @@ void EnzoSinkParticle::write_particle_data() throw() {
   pvz[particle_index_ * dv] =
     (old_momentum_z + total_momentum_z_change_) / pmass[particle_index_ * dm];
 
-  paccrate[particle_index_ * daccrate] = total_pmass_change_ / block_->dt();
+  paccrate[particle_index_ * daccrate] = total_pmass_change_ / block_->state()->dt();
 
   if (pmetalfrac) pmetalfrac[particle_index_ * dmf] =
       (old_metal_mass + total_pmetal_mass_change_) / pmass[particle_index_ * dm];

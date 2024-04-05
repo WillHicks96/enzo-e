@@ -358,14 +358,16 @@ void Adapt::print(std::string message, const Block * block, FILE * fp) const
 {
   if (fp != nullptr && block->is_leaf() && valid_) {
     std::string prefix = std::string("DEBUG_ADAPT ")+message;
-    fprintf (fp,"%s Block %s cycle %d\n",prefix.c_str(),block->name().c_str(),block->cycle());
+    fprintf (fp,"%s Block %s cycle %d\n",prefix.c_str(),
+             block->name().c_str(),
+             block->state()->cycle());
     fprintf (fp,"%s face_level curr: ",prefix.c_str());
-    for (size_t i=0; i<face_level_curr_.size(); i++) {
+    for (std::size_t i=0; i<face_level_curr_.size(); i++) {
       fprintf (fp,"%d ", face_level_curr_.at(i));
     }
     fprintf (fp,"\n");
     fprintf (fp,"%s face_level next: ",prefix.c_str());
-    for (size_t i=0; i<face_level_next_.size(); i++) {
+    for (std::size_t i=0; i<face_level_next_.size(); i++) {
       fprintf (fp,"%d ", face_level_next_.at(i));
     }
     fprintf (fp,"\n");
@@ -407,7 +409,6 @@ void Adapt::print(std::string message, const Block * block, FILE * fp) const
       const LevelInfo & info = neighbor_list_.at(i);
       int il3[3];
       info.index_.index_level(il3,max_level_);
-      int level = info.index_.level();
       char neighbor_block[80];
       if (block) {
         sprintf (neighbor_block,"%s",block->name(info.index_).c_str());
@@ -435,7 +436,7 @@ void Adapt::print(std::string message, const Block * block, FILE * fp) const
 
 void Adapt::write(std::string root, const Block * block, int cycle_start) const
 {
-  const int cycle = cello::simulation()->cycle();
+  const int cycle = cello::simulation()->state()->cycle();
   if (cycle >= cycle_start) {
     char filename[80];
     sprintf (filename,"%d-%s.%s",cycle,root.c_str(),block->name().c_str());

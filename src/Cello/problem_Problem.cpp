@@ -143,9 +143,18 @@ void Problem::initialize_boundary(Config * config,
 
     Boundary * boundary = create_boundary_(type,index,config,parameters);
 
-    ASSERT1("Problem::initialize_boundary",
-	  "Boundary type %s not recognized",
-	  type.c_str(),  boundary != nullptr);
+    if (boundary == nullptr) {
+      // the default err_prefix assumes a single boundary (and Boundary::list)
+      // wasn't used
+      std::string err_prefix = "";
+      if (config->boundary_list[index].find('#') == std::string::npos){
+        err_prefix = "\"Boundary:" + config->boundary_list[index] + "\" has ";
+      }
+
+      ERROR2("Problem::initialize_boundary",
+             "%sunrecognized Boundary type: \"%s\"",
+             err_prefix.c_str(), type.c_str());
+    }
 
     boundary_list_.push_back(boundary);
   }
@@ -469,7 +478,7 @@ void Problem::initialize_method
   Method::courant_global = config->method_courant_global;
 
   method_list_.push_back(new MethodNull(config->method_null_dt)); 
-  
+
   for (size_t index_method=0; index_method < num_method ; index_method++) {
 
     std::string name = config->method_type[index_method];
@@ -491,6 +500,9 @@ void Problem::initialize_method
 			     config->schedule_step[index_schedule],
 			     config->schedule_list[index_schedule]));
       }
+      method->set_max_subcycle(config->method_max_subcycle[index_method]);
+      method->set_max_supercycle(config->method_max_supercycle[index_method]);
+      method->set_index(method_list_.size() - 1);
 
     } else {
       ERROR1("Problem::initialize_method",
@@ -577,30 +589,22 @@ Boundary * Problem::create_boundary_
 
   if (type == "inflow") {
 
-    std::string param_str = 
-      "Boundary:" + config->boundary_list[index] + ":value";
-
-    int param_type = parameters->type(param_str);
-
-    if (! (param_type == parameter_list ||
-	   param_type == parameter_float ||
-	   param_type == parameter_float_expr)) {
-      ERROR2("Problem::create_boundary_()",
-	     "Parameter %s is of incorrect type %d",
-	     param_str.c_str(),param_type);
-    }
-
-    Value * value = new Value (parameters, param_str);
-
     axis_enum axis = (axis_enum) config->boundary_axis[index];
     face_enum face = (face_enum) config->boundary_face[index];
 
-    return new BoundaryValue (axis,face,value,
-			      config->boundary_field_list[index]);
+    return new BoundaryValue (*parameters,
+                              "Boundary:" + config->boundary_list[index],
+                              axis, face);
 
   } else if (type == "periodic") {
 
     axis_enum axis = (axis_enum) config->boundary_axis[index];
+    face_enum face = (face_enum) config->boundary_face[index];
+
+    // the following check probably belongs elsewhere... (not sure where)
+    ASSERT("Problem::create_boundary_",
+           "Periodic boundary must act on both faces of a given axis",
+           face == face_all);
 
     return new BoundaryPeriodic(axis);
 
@@ -1010,6 +1014,7 @@ Output * Problem::create_output_
     std::string image_reduce_type = config->output_image_reduce_type[index];
     std::string image_mesh_color  = config->output_image_mesh_color[index];
     std::string image_mesh_order  = config->output_image_mesh_order[index];
+    std::string image_mesh_scalar = config->output_image_mesh_scalar[index];
     std::string image_color_particle_attribute =
       config->output_image_color_particle_attribute[index];
     double      image_min = config->output_image_min[index];
@@ -1041,6 +1046,7 @@ Output * Problem::create_output_
 			      image_reduce_type,
 			      image_mesh_color,
 			      image_mesh_order,
+			      image_mesh_scalar,
 			      image_color_particle_attribute,
 			      image_lower, image_upper,
 			      image_face_rank,

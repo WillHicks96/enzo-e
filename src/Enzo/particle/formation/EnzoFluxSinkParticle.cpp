@@ -8,8 +8,9 @@
 ///         computing accretion rates according to the method described in
 ///         Bleuler, A & Teyssier, R 2004; MNRAS, 445, 4015-4036
 
-#include "cello.hpp"
-#include "enzo.hpp"
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
+#include "Enzo/particle/particle.hpp"
 
 //-------------------------------------------------------------------------------
 
@@ -151,7 +152,7 @@ void EnzoFluxSinkParticle::compute(double max_mass_fraction) throw()
     // and instead of dividing by "n_cells times rho bar" we multiply by
     // "inverse sum of densities".
     double density_change =
-      accretion_rate_over_cell_volume_ * density[index] * inv_sum_of_densities * block_->dt();
+      accretion_rate_over_cell_volume_ * density[index] * inv_sum_of_densities * block_->state()->dt();
 
     // Restrict density change via density_threshold and max_mass_fraction
     density_change = std::min(std::min(density_change,density[index] - density_threshold_),

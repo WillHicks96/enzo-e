@@ -159,9 +159,9 @@ void EnzoMethodFBNetDeposit::compute ( Block * block ) throw()
         int ipdm_nBH = ip*dm_nBH;
         int ipdt = ip*dt;
         #ifdef DEBUG_METHOD_FBNET
-          CkPrintf("EnzoMethodFBDeposit:: creation_time = %f; block time = %f; block_cycle = %d\n", pform[ipdt], block->time(), block->cycle());
+          CkPrintf("EnzoMethodFBDeposit:: creation_time = %f; block time = %f; block_cycle = %d\n", pform[ipdt], block->state()->time(), block->cycle());
         #endif
-        if (pform[ipdt] == block->time()) {
+        if (pform[ipdt] == block->state()->time()) {
           sphere_x = px[ipdp]; 
           sphere_y = py[ipdp]; 
           sphere_z = pz[ipdp];

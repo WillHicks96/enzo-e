@@ -12,8 +12,9 @@
 ///         MechStars methods in Enzo, adapted for Enzo-E.
 
 
-#include "cello.hpp"
-#include "enzo.hpp"
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
+#include "Enzo/particle/particle.hpp"
 
 #include <time.h>
 
@@ -525,7 +526,7 @@ void EnzoMethodFeedbackSTARSS::compute_ (Block * block)
   double tunit = enzo_units->time();
   double lunit = enzo_units->length();
 
-  double current_time  = block->time();
+  double current_time  = block->state()->time();
 
   Field field = enzo_block->data()->field();
 
@@ -684,7 +685,7 @@ void EnzoMethodFeedbackSTARSS::compute_ (Block * block)
           /* Determine number of SN events from rates (currently taken from Hopkins 2018) */
 
           determineSN(age, &nSNII, &nSNIa, pmass_solar,
-                      tunit, block->dt());
+                      tunit, block->state()->dt());
 
           numSN += nSNII + nSNIa;
 
@@ -724,7 +725,7 @@ void EnzoMethodFeedbackSTARSS::compute_ (Block * block)
 
           determineWinds(age, &windEnergy, &windMass, &windMetals,
                          pmass_solar,
-                         starZ, tunit, block->dt());
+                         starZ, tunit, block->state()->dt());
 
           if (windMass > 0){
             #ifdef DEBUG_FEEDBACK_STARSS
@@ -741,7 +742,21 @@ void EnzoMethodFeedbackSTARSS::compute_ (Block * block)
         // windMass and SNMassEjected are in units of Msun
         pmass[ipdm] -= std::max(0.0,
                        (windMass + SNMassEjected) /
-                       (munit/enzo_constants::mass_solar)); 
+                       (munit/enzo_constants::mass_solar));
+
+
+        // ionizing radiation
+        if (enzo_config->method_feedback_radiation) {
+          double Psi_ion;
+          if (age < 3.5) {
+              Psi_ion = 500; // units of Lsun/Msun
+          }
+          if (age >= 3.5 && age <= 25){
+              Psi_ion = 60. * pow(age/3.5, -3.6) + 470 * pow(age/3.5, 0.045-1.82*std::log(age));
+          }
+          double lum_unit = munit * lunit * lunit / (tunit*tunit*tunit);
+          plum[ipdlum] = Psi_ion * pmass_solar * enzo_constants::luminosity_solar / lum_unit; // erg/s 
+        } // if radiation 
 
         // ionizing radiation
         if (enzo_config->method_feedback_radiation) {
@@ -1512,8 +1527,8 @@ double EnzoMethodFeedbackSTARSS::timestep (Block * block) throw()
   double dtStar = std::numeric_limits<double>::max();
   if (block->level() >= sf_minimum_level_){
     const double pSNmax = 0.0005408 * enzo_config->method_star_maker_minimum_star_mass *
-                          block->dt() * enzo_units->time() / enzo_constants::Myr_s * 1.25;
-    if (pSNmax > 1.0) dtStar = block->dt() * 1.0 / pSNmax;
+      block->state()->dt() * enzo_units->time() / enzo_constants::Myr_s * 1.25;
+    if (pSNmax > 1.0) dtStar = block->state()->dt() * 1.0 / pSNmax;
   }
 
   return dtStar;

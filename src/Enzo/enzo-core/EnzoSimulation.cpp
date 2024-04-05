@@ -41,6 +41,8 @@ EnzoSimulation::EnzoSimulation
     check_directory_(),
     restart_level_(0)
 {
+  state_ = std::make_unique<EnzoState> (0, 0.0, 0.0, false);
+
 #ifdef CHECK_MEMORY
   mtrace();
 #endif
@@ -61,6 +63,16 @@ EnzoSimulation::EnzoSimulation
 
   contribute(callback);
 
+}
+
+EnzoSimulation::EnzoSimulation() : CBase_EnzoSimulation()
+{
+  state_ = std::make_unique<EnzoState> (0, 0.0, 0.0, false);
+}
+
+EnzoSimulation::EnzoSimulation(CkMigrateMessage * m) : CBase_EnzoSimulation(m)
+{
+  state_ = std::make_unique<EnzoState> (0, 0.0, 0.0, false);
 }
 
 //----------------------------------------------------------------------
@@ -95,10 +107,6 @@ void EnzoSimulation::pup (PUP::er &p)
   p | check_ordering_;
   p | check_directory_;
   p | restart_level_;
-
-  if (p.isUnpacking()) {
-    EnzoBlock::initialize(enzo::config());
-  }
 }
 
 //----------------------------------------------------------------------
@@ -233,9 +241,6 @@ void EnzoSimulation::initialize() throw()
 #endif  
   // Call initialize() on base Simulation class
   Simulation::initialize();
-
-  // Initialize EnzoBlock static variables
-  EnzoBlock::initialize(enzo::config());
 
 }
 

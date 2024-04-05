@@ -29,9 +29,9 @@
 /// LINE 16:     P = R + beta * (P - omega * V)
 /// LINE 17:  end for
 
-#include "cello.hpp"
-#include "charm_simulation.hpp"
-#include "enzo.hpp"
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
+#include "Enzo/gravity/gravity.hpp"
 
 // #define DEBUG_COPY_X0
 // #define DEBUG_COPY_R
@@ -442,7 +442,7 @@ void EnzoSolverBiCgStab::compute_(EnzoBlock* block) throw() {
 
   if (is_finest_(block)) {
 
-    const bool reuse_x = reuse_solution_ (block->cycle());
+    const bool reuse_x = reuse_solution_ (block->state()->cycle());
 #ifdef TRACE_SOLVER_BCG      
     if (CkMyPe()==0) {
       CkPrintf ("DEBUG_SOLVER_BCG reusing solution X <- X_copy \n");
@@ -722,8 +722,8 @@ void EnzoSolverBiCgStab::loop_0(EnzoBlock* block) throw() {
   if (is_finest_(block)) cello::check(S(beta_n),"BCG_beta_n",__FILE__,__LINE__);
 
   /// initialize/update current error, store error statistics
-  
-  const int cycle = block->cycle();
+
+  const int cycle = block->state()->cycle();
   const bool reuse_x = reuse_solution_ (cycle);
 
   const int iter = (s_iter_(block));

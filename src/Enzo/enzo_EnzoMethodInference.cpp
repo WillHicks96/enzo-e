@@ -1054,11 +1054,11 @@ void EnzoLevelArray::apply_inference()
     // repeatability.
 
     srand( INDEX(thisIndex[0]+1,thisIndex[1]+1,thisIndex[2]+1,nax_,nay_) * 
-           (cello::simulation()->cycle()+1) );
+           (cello::simulation()->state()->cycle()+1) );
   }
   else { 
     // seed using time and PE index
-    srand( time(NULL) * (cello::simulation()->cycle()+1) * (CkMyPe()+1) );
+    srand( time(NULL) * (cello::simulation()->state()->cycle()+1) * (CkMyPe()+1) );
   }
 
   double sphere_x=0.0, sphere_y=0.0, sphere_z=0.0;
@@ -1391,7 +1391,7 @@ void EnzoLevelArray::apply_inference()
 
 #ifdef TRACE_INFER
   CkPrintf ("TRACE_INFER rectangle %d %g %g %g %g %g %g\n",
-            cello::simulation()->cycle(),
+            cello::simulation()->state()->cycle(),
             lower[0],lower[1],lower[2],
             upper[0],upper[1],upper[2]);
 #endif
@@ -1595,8 +1595,8 @@ void EnzoMethodInference::spawn_remnant_particle ( Block * block,
   pvy[io] = vy;
   pvz[io] = vz;
 
-  CkPrintf("Spawning remnant particle!!! creation_time = %f \n", block->time());
-  pform[io] = block->time();
+  CkPrintf("Spawning remnant particle!!! creation_time = %f \n", block->state()->time());
+  pform[io] = block->state()->time();
 }
 
 //----------------------------------------------------------------------

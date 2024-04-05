@@ -186,7 +186,7 @@ void MethodFluxCorrect::compute_continue_sum_fields
   Field field = block->data()->field();
 
   // Write conserved field sums to output (root block only)
-  
+
   if (block->index().is_root()) {
 
     // for each conserved field
@@ -195,7 +195,7 @@ void MethodFluxCorrect::compute_continue_sum_fields
       const int index_field = flux_data->index_field(i_f);
 
       // save initial sum
-      if (block->cycle() == 0) {
+      if (block->state()->cycle() == 0) {
         field_sum_0_[i_f] = field_sum_[i_f];
       }
       const int precision = field.precision (index_field);
@@ -236,7 +236,7 @@ static void flux_correct_helper_(cello_float * const field_array,
 {
   int ix,iy,iz;
 
-  int axis,face,level_face;
+  int axis,face;
 
   axis=0;
   // X axis

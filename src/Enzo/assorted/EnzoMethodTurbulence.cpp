@@ -6,11 +6,10 @@
 /// @date     Wed Jul 23 00:31:04 UTC 2014
 /// @brief    Implements the EnzoMethodTurbulence class
 
-#include "cello.hpp"
+#include "Enzo/assorted/assorted.hpp"
 
-#include "enzo.hpp"
-
-#include "charm_enzo.hpp"
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
 
 // #define DEBUG_TURBULENCE
 
@@ -237,7 +236,7 @@ void EnzoMethodTurbulence::compute_resume
   field.size(&nx,&ny,&nz);
   int n = nx*ny*nz;
 
-  double dt = block->dt();
+  double dt = block->state()->dt();
 
   int mx,my,mz;
   field.dimensions (0,&mx,&my,&mz);
@@ -397,7 +396,7 @@ void EnzoMethodTurbulence::compute_resume_
 
   double * g = (double *)msg->getData();
 
-  double dt = block->dt();
+  double dt = block->state()->dt();
 
   double norm = (edot_ != 0.0) ?
     ( sqrt(g[0]*g[0] + 2.0*n*g[1]*dt*edot_) - g[0] ) / g[1] : 0.0;

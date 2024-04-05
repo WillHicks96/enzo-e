@@ -5,17 +5,9 @@
 /// @date     2018-05
 /// @brief    Implements the EnzoMethodBackgroundAcceleration class
 
-
-#include "cello.hpp"
-#include "enzo.hpp"
-
-// What are these defs and do I need them?
-//#include "enzo.decl.h"
-//
-//
-// #define CK_TEMPLATES_ONLY
-// #include "enzo.def.h"
-// #undef CK_TEMPLATES_ONLY
+#include "Cello/cello.hpp"
+#include "Enzo/enzo.hpp"
+#include "Enzo/gravity/gravity.hpp"
 
 //---------------------------------------------------------------------
 
@@ -29,7 +21,7 @@ EnzoMethodBackgroundAcceleration::EnzoMethodBackgroundAcceleration
    hx_(0), hy_(0), hz_(0)
 {
 
-  this->G_four_pi_ = 4.0 * cello::pi * enzo_constants::grav_constant;
+  this->G_four_pi_ = 4.0 * cello::pi * enzo::grav_constant_cgs();
 
   FieldDescr * field_descr = cello::field_descr();
 
@@ -101,8 +93,8 @@ void EnzoMethodBackgroundAcceleration::compute_ (Block * block) throw()
 
   if (cosmology) {
     enzo_float cosmo_dadt = 0.0;
-    double dt    = block->dt();
-    double time  = block->time();
+    const double dt    = block->state()->dt();
+    const double time  = block->state()->time();
     cosmology->compute_expansion_factor(&cosmo_a,&cosmo_dadt,time+0.5*dt);
     if (rank >= 1) hx_ *= cosmo_a;
     if (rank >= 2) hy_ *= cosmo_a;
@@ -122,15 +114,16 @@ void EnzoMethodBackgroundAcceleration::compute_ (Block * block) throw()
   }
 
   Particle particle = enzo_block->data()->particle();
+  auto dt = enzo_block->state()->dt();
 
   if (enzo_config->method_background_acceleration_flavor == "GalaxyModel"){
 
     this->GalaxyModel(ax, ay, az, &particle, rank,
-                      cosmo_a, enzo_config, enzo_units, enzo_block->dt);
+                      cosmo_a, enzo_config, enzo_units, dt);
 
   } else if (enzo_config->method_background_acceleration_flavor == "PointMass"){
     this->PointMass(ax, ay, az, &particle, rank,
-                    cosmo_a, enzo_config, enzo_units, enzo_block->dt);
+                    cosmo_a, enzo_config, enzo_units, dt);
   } else {
 
     ERROR("EnzoMethodBackgroundAcceleration::compute_()",
@@ -227,7 +220,7 @@ void EnzoMethodBackgroundAcceleration::GalaxyModel(enzo_float * ax,
 
 //  double G = this->G_four_pi_ *
 //             enzo_units->density() * enzo_units->time() * enzo_units->time();
-  double G_code = enzo_constants::grav_constant * enzo_units->density() * enzo_units->time() * enzo_units->time();
+  double G_code = enzo::grav_constant_cgs() * enzo_units->density() * enzo_units->time() * enzo_units->time();
 
   double rcore = enzo_config->method_background_acceleration_core_radius *
                  enzo_constants::kpc_cm / enzo_units->length();
@@ -423,8 +416,8 @@ double EnzoMethodBackgroundAcceleration::timestep (Block * block) throw()
   if (cosmology) {
     enzo_float cosmo_a = 1.0;
     enzo_float cosmo_dadt = 0.0;
-    double dt   = block->dt();
-    double time = block->time();
+    const double dt   = block->state()->dt();
+    const double time = block->state()->time();
     cosmology-> compute_expansion_factor (&cosmo_a,&cosmo_dadt,time+0.5*dt);
     if (rank >= 1) hx*=cosmo_a;
     if (rank >= 2) hy*=cosmo_a;

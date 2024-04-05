@@ -197,7 +197,6 @@ public: // interface
   {  return num_zones_total_;  }
 
   CProxy_Block new_block_proxy (bool allocate_data) throw();
-  
   void create_block_array () throw();
 
   void create_subblock_array () throw();

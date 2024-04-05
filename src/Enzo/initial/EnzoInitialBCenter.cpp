@@ -4,7 +4,11 @@
 /// @date     Wed Jul 3 2019
 /// @brief    [\ref Problem] VLCT Bfield initialization method implementation
 
-#include "enzo.hpp"
+#include "Enzo/initial/initial.hpp"
+#include "Enzo/enzo.hpp"
+
+// do not put the following into the public header
+#include "Enzo/hydro-mhd/hydro-mhd.hpp" // EnzoBfieldMethodCT
 
 //======================================================================
 
@@ -134,7 +138,7 @@ void EnzoInitialBCenter::enforce_block( Block * block,
   // the vector potential
   if (values_[0] != nullptr || values_[1] != nullptr || values_[2] != nullptr){
 
-    double t = block->time();
+    double t = block->state()->time();
     int nx, ny, nz; // number of cells per axis in the active zone
     field.size(&nx, &ny, &nz);
     int gx, gy, gz;
