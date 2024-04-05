@@ -211,7 +211,8 @@ protected: // methods
   // Interaction with matter is completely local, so don't need a refresh before this step
 
   /// computes the photon-loss term from attenuation by local gas
-  double D_add_attenuation ( EnzoBlock * enzo_block, double clight, int i, int igroup) throw(); 
+  double D_add_attenuation ( EnzoBlock * enzo_block, double clight, int i, int igroup,
+                             std::vector<double> * sigmaNs ) throw(); 
 
   /// helper function used in C_add_recombination
   double get_alpha (double T, int species, char rec_case) throw();
@@ -221,7 +222,7 @@ protected: // methods
 
   /// computes the photon-creation term from recombination in local gas
   double C_add_recombination (EnzoBlock * enzo_block, 
-                              enzo_float * T, int i, int igroup, double E_lower, double E_uppe) throw();
+                              enzo_float * T, int i, int igroup, double E_lower, double E_upper) throw();
 
   /// Computes the photoionization cross-section of particles in a given gas
   /// species (specified by type) and for photons of energy E

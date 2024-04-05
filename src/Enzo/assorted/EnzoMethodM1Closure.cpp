@@ -1040,7 +1040,21 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
     photon_densities.push_back( (enzo_float *) field.values("photon_density_" + std::to_string(igroup))) ;
   }
 
+
+  // make list of all group cross sections so I don't have to call "sig*_string" functions
+  // N_species*N_groups*N_cells times. These functions concatenate strings, which is expensive.
+  // Constructing list on outside of loops gave a speedup of ~3.5x to the method
+  std::vector<double> sigmaNs={}, sigmaEs={}, epss={};
+
   int N_species = 3; // HI, HeI, HeII
+  for (int igroup=0; igroup<enzo_config->method_m1_closure_N_groups; igroup++) {
+    for (int j=0; j<N_species; j++) {
+      sigmaNs.push_back( *(scalar.value( scalar.index( sigN_string(igroup,j) )) ) );
+      sigmaEs.push_back( *(scalar.value( scalar.index( sigE_string(igroup,j) )) ) );
+    }
+    epss.push_back( *(scalar.value( scalar.index(  eps_string(igroup) ))) );
+  }
+
   // loop through cells
   for (int i=0; i<mx*my*mz; i++) {
     double nHI = std::max(HI_density[i] * rhounit / mH, 1e-20); // cgs 
@@ -1048,9 +1062,9 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
     for (int j=0; j<N_species; j++) { //loop over species
       double ionization_rate = 0.0;
       for (int igroup=0; igroup<enzo_config->method_m1_closure_N_groups; igroup++) { //loop over groups
-        double sigmaN = *(scalar.value( scalar.index( sigN_string(igroup,j) ))); // cm^2 
-        double sigmaE = *(scalar.value( scalar.index( sigE_string(igroup,j) ))); // cm^2
-        double eps    = *(scalar.value( scalar.index(  eps_string(igroup  ) ))); // erg 
+        double sigmaN = sigmaNs[N_species*igroup + j]; // cm^2 
+        double sigmaE = sigmaEs[N_species*igroup + j]; // cm^2
+        double eps    = epss[igroup]; // erg 
 
         double N_i = (photon_densities[igroup])[i] * Nunit; // cm^-3
         double n_j = (chemistry_fields[j])[i] * rhounit / masses[j]; //number density of species j
@@ -1222,7 +1236,7 @@ double EnzoMethodM1Closure::C_add_recombination (EnzoBlock * enzo_block,
 //---------------------------------
 
 double EnzoMethodM1Closure::D_add_attenuation ( EnzoBlock * enzo_block, 
-                                             double clight, int i, int igroup) throw()
+                                             double clight, int i, int igroup, std::vector<double> * sigmaNs) throw()
 {
   // Attenuate radiation
 
@@ -1240,12 +1254,12 @@ double EnzoMethodM1Closure::D_add_attenuation ( EnzoBlock * enzo_block,
   double mH = enzo_constants::mass_hydrogen;
   std::vector<double> masses = {mH,4*mH, 4*mH};
  
-  Scalar<double> scalar = enzo_block->data()->scalar_double();
   double D = 0.0;
-  for (std::size_t j=0; j<chemistry_fields.size(); j++) {  
+  int N_species = chemistry_fields.size();
+  for (int j=0; j<N_species; j++) {  
     enzo_float * density_j = (enzo_float *) field.values(chemistry_fields[j]);
     double n_j = density_j[i]*rhounit / masses[j];     
-    double sigN_ij = *(scalar.value( scalar.index( sigN_string(igroup, j) )));
+    double sigN_ij = (*sigmaNs)[N_species*igroup + j];
     
     D += n_j * clight*sigN_ij * tunit; // code_time^-1
 
@@ -1272,6 +1286,8 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
   const EnzoConfig * enzo_config = enzo::config();
   EnzoUnits * enzo_units = enzo::units();
 
+  Scalar<double> scalar = enzo_block->data()->scalar_double();
+  
   Field field = enzo_block->data()->field();
   int mx,my,mz;  
   field.dimensions(0,&mx, &my, &mz); //field dimensions, including ghost zones
@@ -1334,6 +1350,16 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
   
   double Nmin = enzo_config->method_m1_closure_min_photon_density / Nunit;
 
+  // This vector is passed into D_add_attenuation so that sigN_string doesn't have to
+  // be called once per cell
+  std::vector<double> sigmaNs={};
+  int N_species = 3; // HI, HeI, HeII
+  for (int igroup=0; igroup<enzo_config->method_m1_closure_N_groups; igroup++) {
+    for (int j=0; j<N_species; j++) {
+      sigmaNs.push_back( *(scalar.value( scalar.index( sigN_string(igroup,j) )) ) );
+    }
+  }
+
   for (int iz=gz; iz<mz-gz; iz++) {
     for (int iy=gy; iy<my-gy; iy++) {
       for (int ix=gx; ix<mx-gx; ix++) {
@@ -1364,7 +1390,7 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
         double D = 0.0; // photon destruction term
 
         if (enzo_config->method_m1_closure_attenuation) {
-          D = D_add_attenuation(enzo_block, clight_cgs, i, igroup);
+          D = D_add_attenuation(enzo_block, clight_cgs, i, igroup, &sigmaNs);
         }
 
         if (enzo_config->method_m1_closure_recombination_radiation) {
