@@ -233,6 +233,10 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
     }
   }
 
+  //int N_subcycles = 10;
+  //for (int isub=0; isub < N_subcycles; isub++) {
+    //CkPrintf("subcycle %d/%d\n", isub+1, N_subcycles);
+
   //start photon injection step
   //This function will start the transport step after a refresh
   this->call_inject_photons(enzo_block);
@@ -247,6 +251,10 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
     }
   }
 #endif
+
+  //}
+
+  //enzo_block->compute_done();
 
 
   return;
@@ -1589,7 +1597,7 @@ void EnzoMethodM1Closure::call_inject_photons(EnzoBlock * enzo_block) throw()
   } else { // just set sigmaN = sigmaE = either sigma_vernier or custom value, and eps = mean(energy)
 
     if (! enzo_block->is_leaf() ) {
-      enzo_block->compute_done();
+      enzo_block->p_method_m1_closure_solve_transport_eqn();
       return;
     }
 
@@ -1607,13 +1615,13 @@ void EnzoMethodM1Closure::call_inject_photons(EnzoBlock * enzo_block) throw()
           *(scalar.value( scalar.index( sigE_string(i,j) ))) = sigma_j;
         }
       } else if (enzo_config->method_m1_closure_cross_section_calculator == "custom") {
-        // set sigmaN = sigmaE = custom values
-        for (int j=0; j<N_species; j++) {
-          int sig_index = i*N_species + j;
-          double sigmaN_ij = enzo_config->method_m1_closure_sigmaN[sig_index]; // cm^2
-          double sigmaE_ij = enzo_config->method_m1_closure_sigmaE[sig_index];
-          *(scalar.value( scalar.index( sigN_string(i,j) ))) = sigmaN_ij;
-          *(scalar.value( scalar.index( sigE_string(i,j) ))) = sigmaE_ij;
+          // set sigmaN = sigmaE = custom values
+          for (int j=0; j<N_species; j++) {
+            int sig_index = i*N_species + j;
+            double sigmaN_ij = enzo_config->method_m1_closure_sigmaN[sig_index]; // cm^2
+            double sigmaE_ij = enzo_config->method_m1_closure_sigmaE[sig_index];
+            *(scalar.value( scalar.index( sigN_string(i,j) ))) = sigmaN_ij;
+            *(scalar.value( scalar.index( sigE_string(i,j) ))) = sigmaE_ij;
         }
       }
  
@@ -1639,14 +1647,15 @@ void EnzoMethodM1Closure::set_global_averages(EnzoBlock * enzo_block, CkReductio
 {
   // contribute does global reduction over ALL blocks by default (not just leaves)
   // call compute_done here for non leaves so that we don't waste time 
-  // pushing these blocks through solve_transport_eqn().
+  // pushing these blocks through solve_transport_eqn() (compute_done is called within
+  // p_method_m1_closure_solve_transport_eqn).
 
   const EnzoConfig * enzo_config = enzo::config();
   const int N_groups = enzo_config->method_m1_closure_N_groups;
   const int N_species = 3 + enzo_config->method_m1_closure_H2_photodissociation;
   
   if (! enzo_block->is_leaf()) {
-    enzo_block->compute_done(); 
+    enzo_block->p_method_m1_closure_solve_transport_eqn();
     return;  
   }
 
@@ -1717,11 +1726,13 @@ void EnzoBlock::p_method_m1_closure_solve_transport_eqn()
 {
   EnzoMethodM1Closure * method = static_cast<EnzoMethodM1Closure*> (this->method());
 
-  // solve transport eqn for each group
-  method->call_solve_transport_eqn(this);
+  if (this->is_leaf()) { 
+    // solve transport eqn for each group
+    method->call_solve_transport_eqn(this);
 
-  // sum group fields
-  method->sum_group_fields(this);  
+    // sum group fields
+    method->sum_group_fields(this);  
+  }
   compute_done();
   return; 
 }
