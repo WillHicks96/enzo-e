@@ -322,6 +322,11 @@ public: // attributes (YIKES!)
   int GridEndIndex[MAX_DIMENSION];
   enzo_float CellWidth[MAX_DIMENSION];
 
+  /// number of subcycles for EnzoMethodM1Closure
+  int method_m1_closure_num_subcycles;
+  /// subcycle index for EnzoMethodM1Closure
+  int method_m1_closure_subcycle_index;
+
 };
 
 #endif /* ENZO_ENZO_BLOCK_HPP */

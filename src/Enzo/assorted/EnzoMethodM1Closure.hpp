@@ -73,15 +73,26 @@ public: // interface
   /// Compute maximum timestep for this method
   virtual double timestep ( Block * block ) throw();
 
+  /// Compute subcycle timestep for this method
+  double timestep_subcycle ( EnzoBlock * enzo_block ) throw();
+
+  /// Compute RT timestep
+  double timestep_RT ( EnzoBlock * enzo_block ) throw();
+
+  /// Compute number of RT subcycles
+  int get_num_subcycles( EnzoBlock * enzo_block ) throw() {
+    return std::ceil(enzo_block->state()->dt() / timestep_RT(enzo_block));
+  }
+
 
   //--------- CONTROL FLOW --------
-  //  compute_ -> call_inject_photons -> inject_photons ->
+  //  compute -> call_inject_photons -> inject_photons ->
   //  refresh -> call_solve_transport_eqn -> 
   //  solve_transport_eqn, C_add_recombination, D_add_attenuation, 
   //    get_photoionization_and_heating_rates 
 
 
- /// calls inject_photons(), sets the groups' mean cross sections & energies,
+  /// calls inject_photons(), sets the groups' mean cross sections & energies,
   /// then launches a refresh
   ///
   /// @note
@@ -231,6 +242,11 @@ protected: // methods
   /// Calculates photoionization and heating rates in each cell
   void get_photoionization_and_heating_rates (EnzoBlock * enzo_block, double clight) throw();
 
+#ifdef CONFIG_USE_GRACKLE
+  /// Execute Grackle from within this method (recommended if subcycling)
+  void grackle_solve_chemistry(Block * block) throw();
+#endif
+
 protected: // attributes
   int N_groups_;
 
@@ -239,6 +255,10 @@ protected: // attributes
 
   // Tables relevant to M1 closure method
   M1Tables * M1_tables;
+
+#ifdef CONFIG_USE_GRACKLE
+  EnzoMethodGrackle * method_grackle_;
+#endif
 };
 
 

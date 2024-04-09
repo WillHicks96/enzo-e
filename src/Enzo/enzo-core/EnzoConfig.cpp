@@ -287,6 +287,8 @@ EnzoConfig::EnzoConfig() throw ()
   method_m1_closure_recombination_radiation(false),
   method_m1_closure_H2_photodissociation(false),
   method_m1_closure_lyman_werner_background(false),
+  method_m1_closure_subcycle(false),
+  method_m1_closure_call_grackle(false),
   method_m1_closure_LWB_J21(-1.0),
   method_m1_closure_cross_section_calculator("vernier"),
   method_m1_closure_sigmaN(),
@@ -732,6 +734,8 @@ void EnzoConfig::pup (PUP::er &p)
   p | method_m1_closure_recombination_radiation;
   p | method_m1_closure_H2_photodissociation;
   p | method_m1_closure_lyman_werner_background;
+  p | method_m1_closure_subcycle;
+  p | method_m1_closure_call_grackle;
   p | method_m1_closure_LWB_J21;
   p | method_m1_closure_cross_section_calculator;
   p | method_m1_closure_sigmaN;
@@ -1813,6 +1817,12 @@ void EnzoConfig::read_method_m1_closure_(Parameters * p)
 
   method_m1_closure_lyman_werner_background = p->value_logical
     ("Method:m1_closure:lyman_werner_background", false);
+
+  method_m1_closure_subcycle = p->value_logical
+    ("Method:m1_closure:subcycle", false);
+
+  method_m1_closure_call_grackle = p->value_logical
+    ("Method:m1_closure:call_grackle", false);
 
   method_m1_closure_LWB_J21 = p->value_float
     ("Method:m1_closure:LWB_J21", -1.0);

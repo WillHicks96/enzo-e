@@ -17,6 +17,9 @@
 //#define DEBUG_TRANSPORT
 //#define DEBUG_ATTENUATION
 
+#define TRACE_M1_CLOSURE_SUBCYCLE
+
+
 //----------------------------------------------------------------------
 
 EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
@@ -26,6 +29,7 @@ EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
 {
 
   const int rank = cello::rank();
+  const EnzoConfig * enzo_config = enzo::config();
 
   cello::define_field("photon_density"); // photon number density
 
@@ -97,6 +101,21 @@ EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
     if (rank >= 3) refresh->add_field("flux_z_" + istring);  
   }
 
+#ifdef CONFIG_USE_GRACKLE
+  // add all color fields to refresh if calling Grackle from within this method
+  if (enzo_config->method_m1_closure_call_grackle) {
+    //define_required_grackle_fields();
+    refresh->add_all_fields("color");
+
+    method_grackle_ = new EnzoMethodGrackle
+      (enzo_config->method_grackle_chemistry,
+       enzo_config->method_grackle_use_cooling_timestep,
+       enzo_config->method_grackle_radiation_redshift,
+       enzo_config->physics_cosmology_initial_redshift,
+       enzo::simulation()->state()->time());
+  }
+#endif
+
   // Store frequency group attributes as ScalarData variables.
   // Variables with suffix "mL" store the numerators/denominator
   // of eqs. (B6)-(B8). 
@@ -106,7 +125,7 @@ EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
   // only three ionizable species (HI, HeI, HeII)
   // photodissociation cross sections for H2 are added
   // if method_m1_closure_H2_photodissociation = true
-  int N_species_ = 3 + enzo::config()->method_m1_closure_H2_photodissociation; 
+  int N_species_ = 3 + enzo_config->method_m1_closure_H2_photodissociation; 
   for (int i=0; i<N_groups_; i++) {
     scalar_descr->new_value( eps_string(i) );
     scalar_descr->new_value(  mL_string(i) );
@@ -122,7 +141,7 @@ EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
   }
 
   // ScalarData variable for storing uniform LWB photon density
-  if (enzo::config()->method_m1_closure_lyman_werner_background) {
+  if (enzo_config->method_m1_closure_lyman_werner_background) {
     scalar_descr->new_value("N_LWB");
   }
  
@@ -171,6 +190,9 @@ void EnzoMethodM1Closure ::pup (PUP::er &p)
 
   p | N_groups_;
   p | ir_injection_;
+#ifdef CONFIG_USE_GRACKLE
+  p | method_grackle_;
+#endif
 }
 
 //----------------------------------------------------------------------
@@ -233,9 +255,8 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
     }
   }
 
-  //int N_subcycles = 10;
-  //for (int isub=0; isub < N_subcycles; isub++) {
-    //CkPrintf("subcycle %d/%d\n", isub+1, N_subcycles);
+  // reset subcycle index
+  enzo_block->method_m1_closure_subcycle_index = 0;
 
   //start photon injection step
   //This function will start the transport step after a refresh
@@ -252,11 +273,6 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
   }
 #endif
 
-  //}
-
-  //enzo_block->compute_done();
-
-
   return;
 }
 
@@ -264,7 +280,57 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
 
 double EnzoMethodM1Closure::timestep ( Block * block ) throw()
 {
-  Data * data = block->data();
+  // if we're subcycing, return a large number here so that the
+  // global timestep isn't set to the radiation timetep
+
+  bool subcycle_RT = enzo::config()->method_m1_closure_subcycle;
+  if (subcycle_RT) {
+    return std::numeric_limits<double>::max();
+  }
+  else {
+    // RT courant timestep, modulated by a RSOL fraction
+    return timestep_RT(enzo::block(block));
+  }
+
+}
+
+//-----------------------------------------------------------------------
+
+double EnzoMethodM1Closure::timestep_subcycle ( EnzoBlock * enzo_block ) throw()
+{
+  const EnzoConfig * enzo_config = enzo::config();
+
+  int isub = enzo_block->method_m1_closure_subcycle_index;
+
+  double dt_global = enzo_block->state()->dt();
+  double dt_RT = timestep_RT(enzo_block);
+
+  int N_subcycles = get_num_subcycles(enzo_block); // std::ceil(dt_global/dt_RT)
+  
+  // can implement a "max_subcycle" number here.
+  // Upside: Will run faster
+  // Downside: The only way to do this without disobeying the courant condition 
+  //           is to decrease the speed of light. If the speed of light is too small,
+  //           the solution will not be physically correct.
+
+
+  // We need to make sure that the elapsed time across subcycles matches up 
+  // with the global timestep. We can do this by using a smaller timestep
+  // for the last subcycle
+  //
+  // Note that if dt_global < dt_RT here, this function will return dt_global.
+  // This would happen if e.g. we have a RSOL and a supernova goes off, giving
+  // us hot gas with a sound speed comparable to the RSOL.
+
+  bool is_final_subcycle = (isub == N_subcycles-1);
+  return is_final_subcycle ? dt_global-isub*dt_RT : dt_RT;       
+}
+
+//-----------------------------------------------------------------------
+
+double EnzoMethodM1Closure::timestep_RT ( EnzoBlock * enzo_block ) throw()
+{
+  Data * data = enzo_block->data();
   Field field = data->field();
 
   int mx,my,mz;
@@ -272,22 +338,26 @@ double EnzoMethodM1Closure::timestep ( Block * block ) throw()
   const int rank = ((mz == 1) ? ((my == 1) ? 1 : 2) : 3);
 
   double hx,hy,hz;
-  block->cell_width(&hx,&hy,&hz);
+  enzo_block->cell_width(&hx,&hy,&hz);
 
   double h_min = std::numeric_limits<double>::max();
   if (rank >= 1) h_min = std::min(h_min,hx);
   if (rank >= 2) h_min = std::min(h_min,hy);
   if (rank >= 3) h_min = std::min(h_min,hz);
 
+  // The RT timestep we care about is the one at the highest level 
+  h_min *= pow(2, -cello::hierarchy()->max_level() + enzo_block->level() );
+
   const EnzoConfig * enzo_config = enzo::config();
   EnzoUnits * enzo_units = enzo::units();
 
   double courant = this->courant();
-  double clight_frac = enzo_config->method_m1_closure_clight_frac;
-  return courant * h_min / (3.0 * clight_frac*enzo_constants::clight / enzo_units->velocity());
+  double clight = enzo_constants::clight * enzo_config->method_m1_closure_clight_frac;
+  return courant * h_min / (3.0 * clight / enzo_units->velocity());
 }
 
 //-----------------------------------------------------------------------
+
 
 double EnzoMethodM1Closure::integrate_simpson(double a, double b,
                     int n, // Number of intervals
@@ -515,7 +585,8 @@ void EnzoMethodM1Closure::inject_photons ( EnzoBlock * enzo_block, int igroup ) 
 
   double cell_volume = hx*hy*hz * enzo_units->volume(); 
 
-  double dt = enzo_block->state()->dt() * tunit;
+  bool subcycle = enzo_config->method_m1_closure_subcycle;
+  double dt = (subcycle ? timestep_subcycle(enzo_block) : enzo_block->state()->dt()) * tunit;
 
   // get relevant field variables
   enzo_float * N          = (enzo_float *) field.values(
@@ -1337,7 +1408,9 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
   double tunit = enzo_units->time();
   double Nunit = enzo_units->photon_number_density();
 
-  double dt = enzo_block->state()->dt();
+  bool subcycle = enzo_config->method_m1_closure_subcycle;
+
+  double dt = subcycle ? timestep_subcycle(enzo_block) : enzo_block->state()->dt();
   double hx = (xp-xm)/(mx-2*gx);
   double hy = (yp-ym)/(my-2*gy);
   double hz = (zp-zm)/(mz-2*gz);
@@ -1718,6 +1791,12 @@ void EnzoMethodM1Closure::call_solve_transport_eqn(EnzoBlock * enzo_block) throw
     get_photoionization_and_heating_rates(enzo_block, clight);
   }
 
+#ifdef CONFIG_USE_GRACKLE
+  if (enzo_config->method_m1_closure_call_grackle) {
+    grackle_solve_chemistry(static_cast<Block*> (enzo_block));
+  }
+#endif
+
 }
 
 //-------------------------------
@@ -1729,12 +1808,33 @@ void EnzoBlock::p_method_m1_closure_solve_transport_eqn()
   if (this->is_leaf()) { 
     // solve transport eqn for each group
     method->call_solve_transport_eqn(this);
+  }
 
+  int num_subcycles = method->get_num_subcycles(this);
+
+#ifdef TRACE_M1_CLOSURE_SUBCYCLE
+  if ((CkMyPe() == 0) && (this->index().is_root())) {
+    CkPrintf("TRACE_M1_CLOSURE_SUBCYCLE -- [%s] subcycle %d/%d; dt_sub = %1.2e; dt_global = %1.2e\n", 
+      this->name().c_str(), method_m1_closure_subcycle_index+1, num_subcycles,
+      method->timestep_subcycle(this), this->state()->dt() );
+  }
+#endif
+
+  if (method_m1_closure_subcycle_index < num_subcycles-1) {
+    // if we're not done subcycling, iterate the subcycle index and
+    // start the next subcycle
+    method_m1_closure_subcycle_index += 1;
+
+    method->call_inject_photons(this);
+  } 
+  else {
     // sum group fields
     method->sum_group_fields(this);  
+
+    compute_done();
   }
-  compute_done();
-  return; 
+
+  return;
 }
 
 //-----------------------------------------
@@ -1781,3 +1881,24 @@ void EnzoMethodM1Closure::sum_group_fields(EnzoBlock * enzo_block) throw()
     }    
   }
 }
+
+//----------------------------------------
+
+#ifdef CONFIG_USE_GRACKLE
+void EnzoMethodM1Closure::grackle_solve_chemistry(Block * block) throw()
+{
+  if (block->is_leaf()) {
+    // note that compute_done() in EnzoMethodGrackle is called in compute(), not compute_(),
+    // so we don't have to worry about compute_done() being called more than once per block
+    //
+    // Going to have to do this a different way... The constructor in EnzoMethodGrackle
+    // initializes a refresh, which will fuck things up. 
+
+    method_grackle_->compute_(block);
+  }
+
+   
+
+  return;
+}
+#endif
