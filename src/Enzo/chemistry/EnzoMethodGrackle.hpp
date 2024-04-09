@@ -113,7 +113,7 @@ public: // interface
   }
 
 
-  void enforce_metallicity_floor(Block * block) throw();
+  void enforce_metallicity_floor(Block * block) const throw();
 
   void calculate_cooling_time(const EnzoFieldAdaptor& fadaptor,
                               enzo_float* ct, int stale_depth = 0,
@@ -143,9 +143,10 @@ public: // interface
                                      temperature, stale_depth, grackle_fields);
   }
 
-protected: // methods
+  // making this a public method so that it can be called by EnzoMethodM1Closure -- Will Hicks
+  void compute_( Block * block) const throw();
 
-  void compute_( Block * block) throw();
+protected: // methods
 
 protected: // attributes
   /// the GrackleFacade instance provides an interface to all operations in the

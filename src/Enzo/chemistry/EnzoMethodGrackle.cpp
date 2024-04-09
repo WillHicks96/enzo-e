@@ -136,7 +136,7 @@ void EnzoMethodGrackle::define_required_grackle_fields
 void EnzoMethodGrackle::compute ( Block * block) throw()
 {
 
-  if (block->is_leaf()){
+  if ((block->is_leaf()) && (! enzo::config()->method_m1_closure_call_grackle)){
 
 #ifndef CONFIG_USE_GRACKLE
 
@@ -263,7 +263,7 @@ void EnzoMethodGrackle::update_grackle_density_fields(
 
 //----------------------------------------------------------------------
 
-void EnzoMethodGrackle::compute_ ( Block * block) throw()
+void EnzoMethodGrackle::compute_ ( Block * block) const throw()
 {
 #ifndef CONFIG_USE_GRACKLE
   ERROR("EnzoMethodGrackle::compute_", "Enzo-E isn't linked to grackle");
@@ -397,7 +397,7 @@ double EnzoMethodGrackle::timestep ( Block * block ) throw()
 
 //----------------------------------------------------------------------
 
-void EnzoMethodGrackle::enforce_metallicity_floor(Block * block) throw()
+void EnzoMethodGrackle::enforce_metallicity_floor(Block * block) const throw()
 {
   const EnzoFluidFloorConfig& fluid_floors
     = enzo::fluid_props()->fluid_floor_config();

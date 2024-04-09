@@ -257,7 +257,7 @@ protected: // attributes
   M1Tables * M1_tables;
 
 #ifdef CONFIG_USE_GRACKLE
-  EnzoMethodGrackle * method_grackle_;
+  //EnzoMethodGrackle * method_grackle_;
 #endif
 };
 

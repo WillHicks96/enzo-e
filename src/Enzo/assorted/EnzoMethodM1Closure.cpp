@@ -103,17 +103,10 @@ EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
 
 #ifdef CONFIG_USE_GRACKLE
   // add all color fields to refresh if calling Grackle from within this method
-  if (enzo_config->method_m1_closure_call_grackle) {
-    //define_required_grackle_fields();
-    refresh->add_all_fields("color");
-
-    method_grackle_ = new EnzoMethodGrackle
-      (enzo_config->method_grackle_chemistry,
-       enzo_config->method_grackle_use_cooling_timestep,
-       enzo_config->method_grackle_radiation_redshift,
-       enzo_config->physics_cosmology_initial_redshift,
-       enzo::simulation()->state()->time());
-  }
+  //if (enzo_config->method_m1_closure_call_grackle) {
+  //  define_required_grackle_fields();
+  //  refresh->add_all_fields("color");
+  //}
 #endif
 
   // Store frequency group attributes as ScalarData variables.
@@ -191,7 +184,7 @@ void EnzoMethodM1Closure ::pup (PUP::er &p)
   p | N_groups_;
   p | ir_injection_;
 #ifdef CONFIG_USE_GRACKLE
-  p | method_grackle_;
+ // p | method_grackle_;
 #endif
 }
 
@@ -1894,7 +1887,7 @@ void EnzoMethodM1Closure::grackle_solve_chemistry(Block * block) throw()
     // Going to have to do this a different way... The constructor in EnzoMethodGrackle
     // initializes a refresh, which will fuck things up. 
 
-    method_grackle_->compute_(block);
+    enzo::grackle_method()->compute_(block);
   }
 
    
