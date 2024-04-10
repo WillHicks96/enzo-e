@@ -74,13 +74,13 @@ public: // interface
   virtual double timestep ( Block * block ) throw();
 
   /// Compute subcycle timestep for this method
-  double timestep_subcycle ( EnzoBlock * enzo_block ) throw();
+  double timestep_subcycle ( EnzoBlock * enzo_block ) const throw();
 
   /// Compute RT timestep
-  double timestep_RT ( EnzoBlock * enzo_block ) throw();
+  double timestep_RT ( EnzoBlock * enzo_block ) const throw();
 
   /// Compute number of RT subcycles
-  int get_num_subcycles( EnzoBlock * enzo_block ) throw() {
+  int get_num_subcycles( EnzoBlock * enzo_block ) const throw() {
     return std::ceil(enzo_block->state()->dt() / timestep_RT(enzo_block));
   }
 

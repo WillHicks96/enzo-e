@@ -57,6 +57,7 @@ class GrackleChemistryData;
 class EnzoPhysicsCosmology;
 class EnzoPhysicsFluidProps;
 class EnzoMethodGrackle;
+class EnzoMethodM1Closure;
 
 /// Namespace for Enzo global accessor functions
 namespace enzo {
@@ -72,6 +73,7 @@ namespace enzo {
   EnzoPhysicsCosmology *    cosmology();
   EnzoPhysicsFluidProps *   fluid_props();
   const EnzoMethodGrackle * grackle_method();
+  const EnzoMethodM1Closure * m1_closure_method();
 
   /// Returns a pointer of GrackleChemistryData, if grackle is being used by
   /// the simulation, otherwise it returns nullptr.

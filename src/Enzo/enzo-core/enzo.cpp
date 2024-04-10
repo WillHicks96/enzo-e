@@ -45,6 +45,11 @@ namespace enzo {
     return (const EnzoMethodGrackle *) problem()->method("grackle");
   }
 
+  const EnzoMethodM1Closure * m1_closure_method()
+  {
+    return (const EnzoMethodM1Closure *) problem()->method("m1_closure");
+  }
+
   const GrackleChemistryData * grackle_chemistry()
   {
     const EnzoMethodGrackle* ptr = grackle_method();

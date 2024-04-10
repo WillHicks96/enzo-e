@@ -289,7 +289,7 @@ double EnzoMethodM1Closure::timestep ( Block * block ) throw()
 
 //-----------------------------------------------------------------------
 
-double EnzoMethodM1Closure::timestep_subcycle ( EnzoBlock * enzo_block ) throw()
+double EnzoMethodM1Closure::timestep_subcycle ( EnzoBlock * enzo_block ) const throw()
 {
   const EnzoConfig * enzo_config = enzo::config();
 
@@ -321,7 +321,7 @@ double EnzoMethodM1Closure::timestep_subcycle ( EnzoBlock * enzo_block ) throw()
 
 //-----------------------------------------------------------------------
 
-double EnzoMethodM1Closure::timestep_RT ( EnzoBlock * enzo_block ) throw()
+double EnzoMethodM1Closure::timestep_RT ( EnzoBlock * enzo_block ) const throw()
 {
   Data * data = enzo_block->data();
   Field field = data->field();
@@ -1883,14 +1883,8 @@ void EnzoMethodM1Closure::grackle_solve_chemistry(Block * block) throw()
   if (block->is_leaf()) {
     // note that compute_done() in EnzoMethodGrackle is called in compute(), not compute_(),
     // so we don't have to worry about compute_done() being called more than once per block
-    //
-    // Going to have to do this a different way... The constructor in EnzoMethodGrackle
-    // initializes a refresh, which will fuck things up. 
-
     enzo::grackle_method()->compute_(block);
   }
-
-   
 
   return;
 }
