@@ -1553,7 +1553,7 @@ void EnzoMethodM1Closure::add_LWB(EnzoBlock * enzo_block, double J21)
   EnzoUnits * enzo_units = enzo::units();
   double Nunit = enzo_units->photon_number_density();
     
-  double JLW;
+  double JLW = 0.0;
   if (J21 >= 0.0) {
     JLW = J21 * 1e-21;
   }
@@ -1570,11 +1570,10 @@ void EnzoMethodM1Closure::add_LWB(EnzoBlock * enzo_block, double J21)
     double E = -5.056e-6;
 
     double z = enzo_block->state()->redshift();
-    if (z > 30) { // function valid for z < 30 (not many Pop III stars at z > 30)
-      return;
+    if (z < 30) { // function valid for z < 30 (not many Pop III stars at z > 30)
+      double log_J21 = A + B*z + C*z*z + D*z*z*z + E*z*z*z*z;
+      JLW = pow(10, log_J21) * 1e-21; // erg s^-1 cm^-2 Hz^-1 sr^-1
     }
-    double log_J21 = A + B*z + C*z*z + D*z*z*z + E*z*z*z*z;
-    JLW = pow(10, log_J21) * 1e-21; // erg s^-1 cm^-2 Hz^-1 sr^-1
   }
 
   enzo_float * N = (enzo_float *) field.values("photon_density_0");
