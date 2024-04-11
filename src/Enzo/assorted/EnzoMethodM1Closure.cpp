@@ -101,14 +101,6 @@ EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
     if (rank >= 3) refresh->add_field("flux_z_" + istring);  
   }
 
-#ifdef CONFIG_USE_GRACKLE
-  // add all color fields to refresh if calling Grackle from within this method
-  //if (enzo_config->method_m1_closure_call_grackle) {
-  //  define_required_grackle_fields();
-  //  refresh->add_all_fields("color");
-  //}
-#endif
-
   // Store frequency group attributes as ScalarData variables.
   // Variables with suffix "mL" store the numerators/denominator
   // of eqs. (B6)-(B8). 
@@ -183,9 +175,6 @@ void EnzoMethodM1Closure ::pup (PUP::er &p)
 
   p | N_groups_;
   p | ir_injection_;
-#ifdef CONFIG_USE_GRACKLE
- // p | method_grackle_;
-#endif
 }
 
 //----------------------------------------------------------------------
@@ -208,7 +197,7 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
     if (enzo_block->state()->redshift() > enzo_config->method_m1_closure_redshift_on) {
       // don't do anything if it's too early to do RT (e.g. if we don't have any sources yet)
       if (enzo_config->method_m1_closure_call_grackle) {
-        enzo::grackle_method()->compute_(block);
+        grackle_solve_chemistry(block);
       }
       block->compute_done();
       return;
@@ -1167,7 +1156,7 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
       (ionization_rate_fields[j])[i] = ionization_rate * tunit; //update fields with new value, put ionization rates in 1/time_units
     }
         
-  RT_heating_rate[i] = heating_rate * nHI_inv; // units of erg/s/cm^3/nHI
+    RT_heating_rate[i] = heating_rate * nHI_inv; // units of erg/s/cm^3/nHI
   }
 
   // H2 photodissociation from LW radiation
@@ -1185,7 +1174,7 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
     // during runtime.
     // TODO: This is causing an error in interp3d.F, maybe need bigger numbers?
     for (int i=0; i<mx*my*mz; i++) {
-      RT_H2_photodissociation_rate[i] = 1e-10;
+      RT_H2_photodissociation_rate[i] = 1e-10*enzo_config->method_m1_closure_min_photon_density*tunit;
     }
   }
  
@@ -1828,21 +1817,20 @@ void EnzoBlock::p_method_m1_closure_solve_transport_eqn()
 {
   EnzoMethodM1Closure * method = static_cast<EnzoMethodM1Closure*> (this->method());
 
-  if (this->is_leaf()) { 
-    // solve transport eqn for each group
-    method->call_solve_transport_eqn(this);
-  }
-
   int num_subcycles = method->get_num_subcycles(this);
 
 #ifdef TRACE_M1_CLOSURE_SUBCYCLE
   if ((CkMyPe() == 0) && (this->index().is_root())) {
-    CkPrintf("TRACE_M1_CLOSURE_SUBCYCLE -- [%s] subcycle %d/%d; dt_sub = %1.2e; dt_global = %1.2e\n", 
-      this->name().c_str(), method_m1_closure_subcycle_index+1, num_subcycles,
-      method->timestep_subcycle(this), this->state()->dt() );
+    CkPrintf("TRACE_M1_CLOSURE_SUBCYCLE -- [%s] subcycle = %d/%d; dt_sub = %1.2e; dt_global = %1.2e\n", 
+      name().c_str(), method_m1_closure_subcycle_index+1, num_subcycles, method->timestep_subcycle(this), this->state()->dt() );
   }
 #endif
 
+  if (this->is_leaf()) { 
+    // solve transport eqn for each group
+    method->call_solve_transport_eqn(this);
+  }
+  
   if (method_m1_closure_subcycle_index < num_subcycles-1) {
     // if we're not done subcycling, iterate the subcycle index and
     // start the next subcycle
