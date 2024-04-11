@@ -25,15 +25,15 @@ FBNet::FBNet ()
   // read all input file
   // TODO: make input filenames parameters to EnzoMethodInference
 
-  std::string mass_CDF_file = "/home1/07320/whick002/enzo-e_inference/input/FBNet_inputs/CDF_mass.txt";
+  std::string mass_CDF_file = "/home1/07320/whick002/enzo-e_RT_subcycle/input/FBNet_inputs/CDF_mass.txt";
   std::vector<std::vector<double>*> mass_vars = {&mass_CDF_, &mass_CDF_bins_};
   read_file(mass_CDF_file, mass_vars);
 
-  std::string Nstar_CDF_file = "/home1/07320/whick002/enzo-e_inference/input/FBNet_inputs/CDF_Nstar.txt";
+  std::string Nstar_CDF_file = "/home1/07320/whick002/enzo-e_RT_subcycle/input/FBNet_inputs/CDF_Nstar.txt";
   std::vector<std::vector<double>*> Nstar_vars = {&Nstar_CDF_, &Nstar_CDF_bins_};
   read_file(Nstar_CDF_file, Nstar_vars );
 
-  std::string creationtime_CDF_file = "/home1/07320/whick002/enzo-e_inference/input/FBNet_inputs/CDF_creationtime.txt";
+  std::string creationtime_CDF_file = "/home1/07320/whick002/enzo-e_RT_subcycle/input/FBNet_inputs/CDF_creationtime.txt";
   std::vector<std::vector<double>*> creationtime_vars = {&creationtime_CDF_, &creationtime_CDF_bins_};
   read_file(creationtime_CDF_file, creationtime_vars );
 
@@ -49,7 +49,7 @@ FBNet::FBNet ()
   Nstar_mean_ = 1.311; // log-mean number of stars per population (used for tokenization)
   Nstar_std_ = 0.352;
   
-  std::string weights_file = "/home1/07320/whick002/enzo-e_inference/input/FBNet_inputs/regression_weights_" + std::to_string(model_time_) + ".txt";
+  std::string weights_file = "/home1/07320/whick002/enzo-e_RT_subcycle/input/FBNet_inputs/regression_weights_" + std::to_string(model_time_) + ".txt";
   std::vector<std::vector<double>*> regression_vars = {&M0_, &M1_, &M2_, &M3_};
   read_file(weights_file, regression_vars);
 

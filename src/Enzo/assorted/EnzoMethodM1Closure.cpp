@@ -346,7 +346,7 @@ double EnzoMethodM1Closure::timestep_RT ( EnzoBlock * enzo_block ) const throw()
 
   double courant = this->courant();
   double clight = enzo_constants::clight * enzo_config->method_m1_closure_clight_frac;
-  return courant * h_min / (3.0 * clight / enzo_units->velocity());
+  return courant * h_min / (clight / enzo_units->velocity());
 }
 
 //-----------------------------------------------------------------------
@@ -769,19 +769,19 @@ double EnzoMethodM1Closure::flux_function (double U_l, double U_lplus1,
 					    std::string type) throw()
 {
   // returns face-flux of a cell at index idx
-  if (type == "GLF") {
+//  if (type == "GLF") {
     return 0.5*(  Q_l+Q_lplus1 - clight*(U_lplus1-U_l) ); 
-  }
+//  }
 
-  else if (type == "HLL") {
-    return (lmax*Q_l - lmin*Q_lplus1 + lmax*lmin*clight*(U_lplus1-U_l)) / (lmax - lmin);
-  }
+//  else if (type == "HLL") {
+//    return (lmax*Q_l - lmin*Q_lplus1 + lmax*lmin*clight*(U_lplus1-U_l)) / (lmax - lmin);
+//  }
 
-  else {
-    ERROR("EnzoMethodM1Closure::flux_function",
-	     "flux_function type not recognized");
-    return 0.0; 
-  }
+//  else {
+//    ERROR("EnzoMethodM1Closure::flux_function",
+//	     "flux_function type not recognized");
+//    return 0.0; 
+//  }
 }
 
 //--------------------------------------------------------------------------
@@ -805,10 +805,11 @@ void EnzoMethodM1Closure::get_reduced_variables (double * chi, double (*n)[3], i
   double Fnorm = sqrt(Fx[i]*Fx[i] + Fy[i]*Fy[i] + Fz[i]*Fz[i]);
   double f = N[i] > 0 ? std::min(Fnorm / (clight*N[i] ), 1.0) : 0.0; // reduced flux ( 0 < f < 1)
   *chi = (3 + 4*f*f) / (5 + 2*sqrt(4-3*f*f)); // isotropy measure (1/3 < chi < 1)
+  double Fnorm_inv = 1.0 / Fnorm;
   if (Fnorm > 0.0) {
-    (*n)[0] = Fx[i]/Fnorm;
-    (*n)[1] = Fy[i]/Fnorm; 
-    (*n)[2] = Fz[i]/Fnorm;
+    (*n)[0] = Fx[i]*Fnorm_inv;
+    (*n)[1] = Fy[i]*Fnorm_inv; 
+    (*n)[2] = Fz[i]*Fnorm_inv;
   }
 
   #ifdef DEBUG_PRINT_REDUCED_VARIABLES
@@ -849,12 +850,13 @@ void EnzoMethodM1Closure::get_pressure_tensor (EnzoBlock * enzo_block,
   //
   // Note that we're actually storing c^P, since that's the actual
   // value that's being converted to a flux 
+  double chi;
+  double n[3] = {0.0, 0.0, 0.0}; 
   for (int iz=gz-1; iz<mz-gz+1; iz++) { 
    for (int iy=gy-1; iy<my-gy+1; iy++) {
     for (int ix=gx-1; ix<mx-gx+1; ix++) {
       int i = INDEX(ix,iy,iz,mx,my); //index of current cell
-      double chi;
-      double n[3] = {0.0, 0.0, 0.0}; 
+
       get_reduced_variables( &chi, &n, i, clight, 
                             N, Fx, Fy, Fz);
       double iterm = 0.5*(1.0-chi);   // identity term
@@ -881,7 +883,7 @@ void EnzoMethodM1Closure::get_pressure_tensor (EnzoBlock * enzo_block,
 void EnzoMethodM1Closure::get_U_update (EnzoBlock * enzo_block, double * N_update, 
                        double * Fx_update, double * Fy_update, double * Fz_update, 
                        enzo_float * N, enzo_float * Fx, enzo_float * Fy, enzo_float * Fz,
-                       double hx, double hy, double hz, double dt, double clight, 
+                       double dt_hx, double dt_hy, double dt_hz, double clight, 
                        int i, int idx, int idy, int idz) throw()
 {
   Field field = enzo_block->data()->field();
@@ -905,7 +907,7 @@ void EnzoMethodM1Closure::get_U_update (EnzoBlock * enzo_block, double * N_updat
   // +/- clight corresponds to GLF flux function
   double lmin_x = -1.0, lmin_y = -1.0, lmin_z = -1.0;
   double lmax_x =  1.0, lmax_y =  1.0, lmax_z =  1.0;
-
+/*
   if (flux_type == "HLL") {
     double Fnorm = sqrt(Fx[i]*Fx[i] + Fy[i]*Fy[i] + Fz[i]*Fz[i]);
     double f = std::min(Fnorm / (N[i]*clight), 1.0);
@@ -918,61 +920,62 @@ void EnzoMethodM1Closure::get_U_update (EnzoBlock * enzo_block, double * N_updat
     compute_hll_eigenvalues(f, theta_y, &lmin_y, &lmax_y, clight);
     compute_hll_eigenvalues(f, theta_z, &lmin_z, &lmax_z, clight);
   } 
+*/
   
   // if rank >= 1
-  *N_update += dt/hx * deltaQ_faces( N[i],  N[i+idx],  N[i-idx],
+  *N_update += dt_hx * deltaQ_faces( N[i],  N[i+idx],  N[i-idx],
                                    Fx[i], Fx[i+idx], Fx[i-idx], clight, lmin_x, lmax_x, flux_type );
     
-  *Fx_update += dt/hx * deltaQ_faces(Fx[i], Fx[i+idx], Fx[i-idx],
+  *Fx_update += dt_hx * deltaQ_faces(Fx[i], Fx[i+idx], Fx[i-idx],
                                    P00[i],
                                    P00[i+idx],
                                    P00[i-idx], clight, lmin_x, lmax_x, flux_type );
 
   // if rank >= 2
-  *N_update += dt/hy * deltaQ_faces( N[i],  N[i+idy],  N[i-idy],
+  *N_update += dt_hy * deltaQ_faces( N[i],  N[i+idy],  N[i-idy],
                                    Fy[i], Fy[i+idy], Fy[i-idy], clight, lmin_y, lmax_y, flux_type );
 
-  *Fx_update += dt/hy * deltaQ_faces(Fx[i], Fx[i+idy], Fx[i-idy],
+  *Fx_update += dt_hy * deltaQ_faces(Fx[i], Fx[i+idy], Fx[i-idy],
                                    P10[i],
                                    P10[i+idy],
                                    P10[i-idy], clight, lmin_y, lmax_y, flux_type );
 
-  *Fy_update += dt/hx * deltaQ_faces(Fy[i], Fy[i+idx], Fy[i-idx],
+  *Fy_update += dt_hx * deltaQ_faces(Fy[i], Fy[i+idx], Fy[i-idx],
                                    P01[i],
                                    P01[i+idx],
                                    P01[i-idx], clight, lmin_x, lmax_x, flux_type );
 
-  *Fy_update += dt/hy * deltaQ_faces(Fy[i], Fy[i+idy], Fy[i-idy],
+  *Fy_update += dt_hy * deltaQ_faces(Fy[i], Fy[i+idy], Fy[i-idy],
                                    P11[i],
                                    P11[i+idy],
                                    P11[i-idy], clight, lmin_y, lmax_y, flux_type );
 
 
    // if rank >= 3
-  *N_update += dt/hz * deltaQ_faces( N[i],  N[i+idz],  N[i-idz],
+  *N_update += dt_hz * deltaQ_faces( N[i],  N[i+idz],  N[i-idz],
                                    Fz[i], Fz[i+idz], Fz[i-idz], clight, lmin_z, lmax_z, flux_type );
 
-  *Fx_update += dt/hz * deltaQ_faces(Fx[i], Fx[i+idz], Fx[i-idz],
+  *Fx_update += dt_hz * deltaQ_faces(Fx[i], Fx[i+idz], Fx[i-idz],
                                    P20[i],
                                    P20[i+idz],
                                    P20[i-idz], clight, lmin_z, lmax_z, flux_type );
 
-  *Fy_update += dt/hz * deltaQ_faces(Fy[i], Fy[i+idz], Fy[i-idz],
+  *Fy_update += dt_hz * deltaQ_faces(Fy[i], Fy[i+idz], Fy[i-idz],
                                    P21[i],
                                    P21[i+idz],
                                    P21[i-idz], clight, lmin_z, lmax_z, flux_type);
 
-  *Fz_update += dt/hx * deltaQ_faces(Fz[i], Fz[i+idx], Fz[i-idx],
+  *Fz_update += dt_hx * deltaQ_faces(Fz[i], Fz[i+idx], Fz[i-idx],
                                    P02[i],
                                    P02[i+idx],
                                    P02[i-idx], clight, lmin_x, lmax_x, flux_type);
 
-  *Fz_update += dt/hy * deltaQ_faces(Fz[i], Fz[i+idy], Fz[i-idy],
+  *Fz_update += dt_hy * deltaQ_faces(Fz[i], Fz[i+idy], Fz[i-idy],
                                    P12[i],
                                    P12[i+idy],
                                    P12[i-idy], clight, lmin_y, lmax_y, flux_type);
 
-  *Fz_update += dt/hz * deltaQ_faces(Fz[i], Fz[i+idz], Fz[i-idz],
+  *Fz_update += dt_hz * deltaQ_faces(Fz[i], Fz[i+idz], Fz[i-idz],
                                    P22[i],
                                    P22[i+idz],
                                    P22[i-idz], clight, lmin_z, lmax_z, flux_type);
@@ -1104,8 +1107,8 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
   double rhounit = enzo_units->density();
 
   std::vector<double> Eion = {13.6*enzo_constants::erg_eV, 24.59*enzo_constants::erg_eV, 54.42*enzo_constants::erg_eV};
-  double mH = enzo_constants::mass_hydrogen;
-  std::vector<double> masses = {mH,4*mH,4*mH};
+  double mH_inv = 1.0/enzo_constants::mass_hydrogen;
+  std::vector<double> masses_inv = {1.0*mH_inv,0.25*mH_inv,0.25*mH_inv};
 
   std::vector<enzo_float*> photon_densities = {};
   for (int igroup=0; igroup<enzo_config->method_m1_closure_N_groups; igroup++) { 
@@ -1117,10 +1120,12 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
   // N_species*N_groups*N_cells times. These functions concatenate strings, which is expensive.
   // Constructing list on outside of loops gave a speedup of ~3.5x to the method
   std::vector<double> sigmaNs={}, sigmaEs={}, epss={};
-
-  int N_species = 3; // HI, HeI, HeII
+  
+  bool H2_photodissociation = enzo_config->method_m1_closure_H2_photodissociation;
+  // HI, HeI, HeII
+  int N_species = 3;
   for (int igroup=0; igroup<enzo_config->method_m1_closure_N_groups; igroup++) {
-    for (int j=0; j<N_species; j++) {
+    for (int j=0; j<N_species+H2_photodissociation; j++) {
       sigmaNs.push_back( *(scalar.value( scalar.index( sigN_string(igroup,j) )) ) );
       sigmaEs.push_back( *(scalar.value( scalar.index( sigE_string(igroup,j) )) ) );
     }
@@ -1129,17 +1134,17 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
 
   // loop through cells
   for (int i=0; i<mx*my*mz; i++) {
-    double nHI = std::max(HI_density[i] * rhounit / mH, 1e-20); // cgs 
+    double nHI_inv = 1.0/std::max(HI_density[i] * rhounit*mH_inv, 1e-20); // cgs 
     double heating_rate = 0.0; 
-    for (int j=0; j<N_species; j++) { //loop over species
+    for (int j=0; j<N_species; j++) { //loop over ionizeable species
       double ionization_rate = 0.0;
-      for (int igroup=0; igroup<enzo_config->method_m1_closure_N_groups; igroup++) { //loop over groups
+      for (int igroup=H2_photodissociation; igroup<enzo_config->method_m1_closure_N_groups; igroup++) { //loop over groups
         double sigmaN = sigmaNs[N_species*igroup + j]; // cm^2 
         double sigmaE = sigmaEs[N_species*igroup + j]; // cm^2
         double eps    = epss[igroup]; // erg 
 
         double N_i = (photon_densities[igroup])[i] * Nunit; // cm^-3
-        double n_j = (chemistry_fields[j])[i] * rhounit / masses[j]; //number density of species j
+        double n_j = (chemistry_fields[j])[i] * rhounit * masses_inv[j]; //number density of species j
            
         double ediff = eps*sigmaE - Eion[j]*sigmaN;
             
@@ -1150,16 +1155,25 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
       (ionization_rate_fields[j])[i] = ionization_rate * tunit; //update fields with new value, put ionization rates in 1/time_units
     }
         
-  RT_heating_rate[i] = heating_rate / nHI; // units of erg/s/cm^3/nHI
+  RT_heating_rate[i] = heating_rate * nHI_inv; // units of erg/s/cm^3/nHI
   }
 
   // H2 photodissociation from LW radiation
+  enzo_float * RT_H2_photodissociation_rate = (enzo_float *) field.values("RT_H2_dissociation_rate");
   if (enzo_config->method_m1_closure_H2_photodissociation) {
-    enzo_float * RT_H2_photodissociation_rate = (enzo_float *) field.values("RT_H2_dissociation_rate");
     for (int i=0; i<mx*my*mz; i++) {
       double N = (photon_densities[0])[i] * Nunit; // LW-group assumed to be group 0
-      double sigmaN = *(scalar.value( scalar.index( sigN_string(0,3) ))); // cm^2 
+      double sigmaN = sigmaNs[3]; // cm^2 -- H2 photodissociation cross sections stored in igroup=0, j=3 
       RT_H2_photodissociation_rate[i] = sigmaN*clight*N * tunit;
+    }
+  }
+  else { 
+    // if not directly photodissociating, fill dissociation rate field with zeros.
+    // Note that Grackle add RT_H2_photodissociation_rate to the tabulated LWB rates
+    // during runtime.
+    // TODO: This is causing an error in interp3d.F, maybe need bigger numbers?
+    for (int i=0; i<mx*my*mz; i++) {
+      RT_H2_photodissociation_rate[i] = 1e-10;
     }
   }
  
@@ -1258,7 +1272,9 @@ int EnzoMethodM1Closure::get_b_boolean (double E_lower, double E_upper, int spec
 
 double EnzoMethodM1Closure::C_add_recombination (EnzoBlock * enzo_block,
                                                 enzo_float * T, int i, int igroup,
-                                                double E_lower, double E_upper) throw()
+                                                double E_lower, double E_upper,
+                                                std::vector<std::string> * chemistry_fields, 
+                                                std::vector<double> * masses_inv) throw()
 {
   // update photon_density to account for recombination
   // 2nd half of eq 25, using backwards-in-time quantities for all variables.
@@ -1269,29 +1285,26 @@ double EnzoMethodM1Closure::C_add_recombination (EnzoBlock * enzo_block,
 
   EnzoUnits * enzo_units = enzo::units();
   double rhounit = enzo_units->density();
-  double Cunit = enzo_units->photon_number_density() / enzo_units->time(); 
+  double Cunit_inv = enzo_units->time() / enzo_units->photon_number_density();
 
   enzo_float * e_density = (enzo_float *) field.values("e_density");
 
-  std::vector<std::string> chemistry_fields = {"HI_density", 
-                                               "HeI_density", "HeII_density"};
-  double mH  = enzo_constants::mass_hydrogen; // cgs
-
-  std::vector<double> masses = {mH,4*mH, 4*mH};
+  double mH_inv  = 1.0/enzo_constants::mass_hydrogen; // cgs
 
   double C = 0.0;
-  for (std::size_t j=0; j<chemistry_fields.size(); j++) {  
-    enzo_float * density_j = (enzo_float *) field.values(chemistry_fields[j]);
+  int N_species=3;
+  for (std::size_t j=0; j<N_species; j++) {  
+    enzo_float * density_j = (enzo_float *) field.values((*chemistry_fields)[j]);
      
     int b = get_b_boolean(E_lower, E_upper, j);
 
     double alpha_A = get_alpha(T[i], j, 'A');  // cgs
     double alpha_B = get_alpha(T[i], j, 'B');
 
-    double n_j = density_j[i]*rhounit/masses[j];
-    double n_e = e_density[i]*rhounit/mH; // electrons have same mass as protons in code units
+    double n_j = density_j[i]*rhounit*(*masses_inv)[j];
+    double n_e = e_density[i]*rhounit*mH_inv; // electrons have same mass as protons in code units
 
-    C += b*(alpha_A-alpha_B) * n_j*n_e / Cunit;
+    C += b*(alpha_A-alpha_B) * n_j*n_e * Cunit_inv;
 
 #ifdef DEBUG_RECOMBINATION
     CkPrintf("MethodM1Closure::C_add_recombination -- j=%d; alpha_A = %1.3e; alpha_B = %1.3e; n_j = %1.3e; n_e = %1.3e; b_boolean = %d\n", j, alpha_A, alpha_B, n_j, n_e, b);
@@ -1299,7 +1312,7 @@ double EnzoMethodM1Closure::C_add_recombination (EnzoBlock * enzo_block,
   }
 
 #ifdef DEBUG_RECOMBINATION
-  CkPrintf("MethodM1Closure::C_add_recombination -- [E_lower, E_upper] = [%.2f, %.2f]; dN_dt[i] = %1.3e; dt = %1.3e\n", E_lower, E_upper, C, enzo_block->dt);
+  CkPrintf("MethodM1Closure::C_add_recombination -- [E_lower, E_upper] = [%.2f, %.2f]; dN_dt[i] = %1.3e; dt = %1.3e\n", E_lower, E_upper, C, enzo_block->state()->dt);
 #endif 
 
   return C;
@@ -1308,7 +1321,8 @@ double EnzoMethodM1Closure::C_add_recombination (EnzoBlock * enzo_block,
 //---------------------------------
 
 double EnzoMethodM1Closure::D_add_attenuation ( EnzoBlock * enzo_block, 
-                                             double clight, int i, int igroup, std::vector<double> * sigmaNs) throw()
+                                             double clight, int i, int igroup, std::vector<double> * sigmaNs,
+                                             std::vector<std::string> * chemistry_fields, std::vector<double> * masses_inv) throw()
 {
   // Attenuate radiation
 
@@ -1317,20 +1331,13 @@ double EnzoMethodM1Closure::D_add_attenuation ( EnzoBlock * enzo_block,
   double tunit = enzo_units->time();
 
   Field field = enzo_block->data()->field();
-
-  if (! field.is_field("density")) return 0.0;
- 
-  std::vector<std::string> chemistry_fields = {"HI_density", 
-                                               "HeI_density", "HeII_density"};
-
-  double mH = enzo_constants::mass_hydrogen;
-  std::vector<double> masses = {mH,4*mH, 4*mH};
  
   double D = 0.0;
-  int N_species = chemistry_fields.size();
+ 
+  int N_species = 3;
   for (int j=0; j<N_species; j++) {  
-    enzo_float * density_j = (enzo_float *) field.values(chemistry_fields[j]);
-    double n_j = density_j[i]*rhounit / masses[j];     
+    enzo_float * density_j = (enzo_float *) field.values((*chemistry_fields)[j]);
+    double n_j = density_j[i]*rhounit * (*masses_inv)[j];     
     double sigN_ij = (*sigmaNs)[N_species*igroup + j];
     
     D += n_j * clight*sigN_ij * tunit; // code_time^-1
@@ -1407,6 +1414,11 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
   double hx = (xp-xm)/(mx-2*gx);
   double hy = (yp-ym)/(my-2*gy);
   double hz = (zp-zm)/(mz-2*gz);
+
+  double dt_hx = dt/hx;
+  double dt_hy = dt/hy;
+  double dt_hz = dt/hz;
+
   double clight_cgs = enzo_config->method_m1_closure_clight_frac*enzo_constants::clight; 
   double clight_code = clight_cgs * tunit/lunit;
   
@@ -1434,6 +1446,13 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
     }
   }
 
+ 
+  std::vector<std::string> chemistry_fields = {"HI_density", 
+                                               "HeI_density", "HeII_density"};
+
+  double mH_inv = enzo_constants::mass_hydrogen;
+  std::vector<double> masses_inv = {1.0*mH_inv,0.25*mH_inv, 0.25*mH_inv};
+
   for (int iz=gz; iz<mz-gz; iz++) {
     for (int iy=gy; iy<my-gy; iy++) {
       for (int ix=gx; ix<mx-gx; ix++) {
@@ -1441,7 +1460,7 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
         double N_update=0, Fx_update=0, Fy_update=0, Fz_update=0;
       
         get_U_update( enzo_block, &N_update, &Fx_update, &Fy_update, &Fz_update,
-                             N, Fx, Fy, Fz, hx, hy, hz, dt, clight_code,
+                             N, Fx, Fy, Fz, dt_hx, dt_hy, dt_hz, clight_code,
                              i, idx, idy, idz ); 
         
         // get updated fluxes
@@ -1464,14 +1483,14 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
         double D = 0.0; // photon destruction term
 
         if (enzo_config->method_m1_closure_attenuation) {
-          D = D_add_attenuation(enzo_block, clight_cgs, i, igroup, &sigmaNs);
+          D = D_add_attenuation(enzo_block, clight_cgs, i, igroup, &sigmaNs, &chemistry_fields, &masses_inv);
         }
 
         if (enzo_config->method_m1_closure_recombination_radiation) {
           // update photon density due to recombinations
           // Grackle does recombination chemistry, but doesn't
           // do anything about the radiation that comes out of recombination
-          C = C_add_recombination(enzo_block, T, i, igroup, E_lower, E_upper);
+          C = C_add_recombination(enzo_block, T, i, igroup, E_lower, E_upper, &chemistry_fields, &masses_inv);
         }
         
         // update radiation fields due to thermochemistry (see appendix A)

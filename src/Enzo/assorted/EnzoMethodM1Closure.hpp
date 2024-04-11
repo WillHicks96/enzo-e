@@ -211,7 +211,7 @@ protected: // methods
   void get_U_update (EnzoBlock * enzo_block, double * N_update, 
                        double * Fx_update, double * Fy_update, double * Fz_update, 
                        enzo_float * N, enzo_float * Fx, enzo_float * Fy, enzo_float * Fz,
-                       double hx, double hy, double hz, double dt, double clight, 
+                       double dt_hx, double dt_hy, double dt_hz, double clight, 
                        int i, int idx, int idy, int idz) throw();
 
   void solve_transport_eqn (EnzoBlock * enzo_block, int igroup) throw();
@@ -223,7 +223,8 @@ protected: // methods
 
   /// computes the photon-loss term from attenuation by local gas
   double D_add_attenuation ( EnzoBlock * enzo_block, double clight, int i, int igroup,
-                             std::vector<double> * sigmaNs ) throw(); 
+                             std::vector<double> * sigmaNs, std::vector<std::string> * chemistry_fields,
+                             std::vector<double> * masses_inv ) throw(); 
 
   /// helper function used in C_add_recombination
   double get_alpha (double T, int species, char rec_case) throw();
@@ -233,7 +234,9 @@ protected: // methods
 
   /// computes the photon-creation term from recombination in local gas
   double C_add_recombination (EnzoBlock * enzo_block, 
-                              enzo_float * T, int i, int igroup, double E_lower, double E_upper) throw();
+                              enzo_float * T, int i, int igroup, double E_lower, double E_upper, 
+                              std::vector<std::string> * chemistry_fields,
+                              std::vector<double> * masses_inv ) throw(); 
 
   /// Computes the photoionization cross-section of particles in a given gas
   /// species (specified by type) and for photons of energy E
