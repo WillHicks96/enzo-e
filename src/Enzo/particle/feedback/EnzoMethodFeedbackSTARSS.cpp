@@ -747,30 +747,16 @@ void EnzoMethodFeedbackSTARSS::compute_ (Block * block)
 
         // ionizing radiation
         if (enzo_config->method_feedback_radiation) {
-          double Psi_ion;
+          double Psi_ion = 0.0;;
           if (age < 3.5) {
               Psi_ion = 500; // units of Lsun/Msun
           }
-          if (age >= 3.5 && age <= 25){
+          else if (age >= 3.5 && age < 25){
               Psi_ion = 60. * pow(age/3.5, -3.6) + 470 * pow(age/3.5, 0.045-1.82*std::log(age));
           }
           double lum_unit = munit * lunit * lunit / (tunit*tunit*tunit);
           plum[ipdlum] = Psi_ion * pmass_solar * enzo_constants::luminosity_solar / lum_unit; // erg/s 
         } // if radiation 
-
-        // ionizing radiation
-        if (enzo_config->method_feedback_radiation) {
-          double Psi_ion;
-          if (age < 3.5) {
-              Psi_ion = 500; // units of Lsun/Msun
-          }
-          if (age >= 3.5 && age <= 25){
-              Psi_ion = 60. * pow(age/3.5, -3.6) + 470 * pow(age/3.5, 0.045-1.82*std::log(age));
-          }
-          double lum_unit = munit * lunit * lunit / (tunit*tunit*tunit);
-          plum[ipdlum] = Psi_ion * pmass_solar * enzo_constants::luminosity_solar / lum_unit; // erg/s 
-        } // if radiation
-
 
       } // if mass and lifetime > 0
 

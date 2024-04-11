@@ -201,9 +201,20 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
   // but they will also execute the callback function following the contribute() call.
   // This means the non-leaves would end up calling compute_done() twice which results
   // in skipped cycles
-  
+ 
   const EnzoConfig * enzo_config = enzo::config();
-
+  EnzoBlock * enzo_block = enzo::block(block);
+  if (enzo::cosmology()) {
+    if (enzo_block->state()->redshift() > enzo_config->method_m1_closure_redshift_on) {
+      // don't do anything if it's too early to do RT (e.g. if we don't have any sources yet)
+      if (enzo_config->method_m1_closure_call_grackle) {
+        enzo::grackle_method()->compute_(block);
+      }
+      block->compute_done();
+      return;
+    }
+  }
+ 
   Field field = block->data()->field();
   int mx,my,mz;
   field.dimensions(0,&mx, &my, &mz); //field dimensions, including ghost zones
@@ -212,7 +223,6 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
 
   const int m = mx*my*mz;
 
-  EnzoBlock * enzo_block = enzo::block(block);
 
   int N_groups = enzo_config->method_m1_closure_N_groups;
   int N_species = 3 + enzo_config->method_m1_closure_H2_photodissociation;
@@ -1139,8 +1149,10 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
     for (int j=0; j<N_species; j++) { //loop over ionizeable species
       double ionization_rate = 0.0;
       for (int igroup=H2_photodissociation; igroup<enzo_config->method_m1_closure_N_groups; igroup++) { //loop over groups
-        double sigmaN = sigmaNs[N_species*igroup + j]; // cm^2 
-        double sigmaE = sigmaEs[N_species*igroup + j]; // cm^2
+        // LW radiation is igroup=0, H2 is j=3. if H2_photodissociation=true, loop starts at igroup=1
+        int sigma_idx = (N_species+H2_photodissociation)*igroup + j;
+        double sigmaN = sigmaNs[sigma_idx]; // cm^2 
+        double sigmaE = sigmaEs[sigma_idx]; // cm^2
         double eps    = epss[igroup]; // erg 
 
         double N_i = (photon_densities[igroup])[i] * Nunit; // cm^-3

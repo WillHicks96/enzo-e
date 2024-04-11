@@ -344,6 +344,7 @@ public: // interface
       method_m1_closure_particle_luminosity(-1.0), // specify emission rate from sources
       method_m1_closure_SED(), // supply list of emission rates for all groups (radiation_spectrum="custom")
       method_m1_closure_min_photon_density(0.0),
+      method_m1_closure_redshift_on(200.0),
       method_m1_closure_attenuation(true),
       method_m1_closure_thermochemistry(true),
       method_m1_closure_recombination_radiation(false),
@@ -881,6 +882,7 @@ public: // attributes
   double                    method_m1_closure_particle_luminosity;
   std::vector<double>       method_m1_closure_SED;
   double                    method_m1_closure_min_photon_density;
+  double                    method_m1_closure_redshift_on;
   bool                      method_m1_closure_attenuation;
   bool                      method_m1_closure_thermochemistry;
   bool                      method_m1_closure_recombination_radiation;
