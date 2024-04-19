@@ -98,6 +98,11 @@ void EnzoInitialFeedbackTest::enforce_block
   const EnzoConfig * enzo_config = enzo::config();
   EnzoUnits * enzo_units = enzo::units();
 
+  double munit = enzo_units->mass();
+  double lunit = enzo_units->length();
+  double tunit = enzo_units->time();
+  double Eunit = munit*lunit*lunit / tunit/tunit;
+
   Field field = block->data()->field();
 
   // setup grackle if needed
@@ -266,7 +271,7 @@ void EnzoInitialFeedbackTest::enforce_block
       px[ipp]    = this->position[0][i];
       py[ipp]    = this->position[1][i];
       pz[ipp]    = this->position[2][i];
-      plum[ipp]  = this->luminosity[i] * enzo_units->time(); // luminosity in photons/time
+      plum[ipp]  = this->luminosity[i] / (Eunit/tunit); // luminosity in energy/time
       pvx[ipp]   = 0.0;
       pvy[ipp]   = 0.0;
       pvz[ipp]   = 0.0;

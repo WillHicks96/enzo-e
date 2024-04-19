@@ -1159,24 +1159,31 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
     RT_heating_rate[i] = heating_rate * nHI_inv; // units of erg/s/cm^3/nHI
   }
 
-  // H2 photodissociation from LW radiation
-  enzo_float * RT_H2_photodissociation_rate = (enzo_float *) field.values("RT_H2_dissociation_rate");
-  if (enzo_config->method_m1_closure_H2_photodissociation) {
-    for (int i=0; i<mx*my*mz; i++) {
-      double N = (photon_densities[0])[i] * Nunit; // LW-group assumed to be group 0
-      double sigmaN = sigmaNs[3]; // cm^2 -- H2 photodissociation cross sections stored in igroup=0, j=3 
-      RT_H2_photodissociation_rate[i] = sigmaN*clight*N * tunit;
+  const GrackleChemistryData * grackle_chem = enzo::grackle_chemistry();
+  const int primordial_chemistry = (grackle_chem == nullptr) ?
+    0 : grackle_chem->get<int>("primordial_chemistry");
+
+  if (primordial_chemistry > 1) {
+    // H2 photodissociation from LW radiation
+    enzo_float * RT_H2_photodissociation_rate = (enzo_float *) field.values("RT_H2_dissociation_rate");
+    if (enzo_config->method_m1_closure_H2_photodissociation) {
+      for (int i=0; i<mx*my*mz; i++) {
+        double N = (photon_densities[0])[i] * Nunit; // LW-group assumed to be group 0
+        double sigmaN = sigmaNs[3]; // cm^2 -- H2 photodissociation cross sections stored in igroup=0, j=3 
+        RT_H2_photodissociation_rate[i] = sigmaN*clight*N * tunit;
+      }
     }
-  }
-  else { 
-    // if not directly photodissociating, fill dissociation rate field with zeros.
-    // Note that Grackle add RT_H2_photodissociation_rate to the tabulated LWB rates
-    // during runtime.
-    // TODO: This is causing an error in interp3d.F, maybe need bigger numbers?
-    for (int i=0; i<mx*my*mz; i++) {
-      RT_H2_photodissociation_rate[i] = 1e-10*enzo_config->method_m1_closure_min_photon_density*tunit;
+    else { 
+      // if not directly photodissociating, fill dissociation rate field with zeros.
+      // Note that Grackle add RT_H2_photodissociation_rate to the tabulated LWB rates
+      // during runtime.
+      // TODO: This is causing an error in interp3d.F, maybe need bigger numbers?
+      for (int i=0; i<mx*my*mz; i++) {
+        RT_H2_photodissociation_rate[i] = 1e-10*enzo_config->method_m1_closure_min_photon_density*tunit;
+      }
     }
-  }
+
+ }
  
 }
 

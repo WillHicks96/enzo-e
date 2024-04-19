@@ -136,8 +136,21 @@ void EnzoMethodGrackle::define_required_grackle_fields
 
 void EnzoMethodGrackle::compute ( Block * block) throw()
 {
+  bool call_compute_ = true;
+  Method * m1_closure_method = enzo::problem()->method("m1_closure");
 
-  if ((block->is_leaf()) && (! enzo::config()->method_m1_closure_call_grackle)){
+  if (m1_closure_method != nullptr) {
+    // call grackle here if m1_closure method will call grackle, but
+    // is not yet active
+    if (enzo::config()->method_m1_closure_call_grackle) {
+      Schedule * m1_schedule = m1_closure_method->schedule();
+      call_compute_ = ! ((m1_schedule==NULL) ||
+        (m1_schedule->write_this_cycle(block->state()->cycle(),block->state()->time()) ));
+    }
+    // else call_compute_ defaults to true
+  }
+
+  if ((block->is_leaf()) && (call_compute_)) {
 
 #ifndef CONFIG_USE_GRACKLE
 
