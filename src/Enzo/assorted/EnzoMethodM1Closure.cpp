@@ -16,6 +16,7 @@
 //#define DEBUG_INJECTION
 //#define DEBUG_TRANSPORT
 //#define DEBUG_ATTENUATION
+//#define DEBUG_GRACKLE_RATES
 
 #define TRACE_M1_CLOSURE_SUBCYCLE
 
@@ -138,12 +139,14 @@ EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
 
   refresh_injection->set_accumulate(true);
 
-  // don't need to add fluxes to injection refresh 
-  // because only the photon_density fields are updated there
-
+  // need to add fluxes to refresh in case we are subcycling
   for (int i=0; i<N_groups_; i++) {
     std::string istring = std::to_string(i); 
-
+    refresh_injection->add_field("photon_density_" + istring);
+    if (rank >= 1) refresh_injection->add_field("flux_x_" + istring);
+    if (rank >= 2) refresh_injection->add_field("flux_y_" + istring);
+    if (rank >= 3) refresh_injection->add_field("flux_z_" + istring); 
+    
     refresh_injection->add_field_src_dst
        ("photon_density_"+istring+"_deposit", "photon_density_"+istring); 
   }
@@ -216,35 +219,12 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
   int N_groups = enzo_config->method_m1_closure_N_groups;
   int N_species = 3 + enzo_config->method_m1_closure_H2_photodissociation;
 
-  if (enzo_config->method_m1_closure_thermochemistry) {
+  if (enzo_config->method_m1_closure_recombination_radiation) {
     // compute the temperature
     EnzoComputeTemperature compute_temperature(enzo::fluid_props(),
                                                enzo_config->physics_cosmology);
 
     compute_temperature.compute(enzo_block);
-  }
-
-  Scalar<double> scalar = block->data()->scalar_double();
-
-  // reset "mL" sums to zero
-  // TODO: only do this once every N cycles, where N is a parameter
-  for (int i=0; i<N_groups; i++) {
-    *(scalar.value( scalar.index( eps_string(i) + mL_string(i) ))) = 0.0;
-    *(scalar.value( scalar.index( mL_string(i) ) )) = 0.0;
-    for (int j=0; j<N_species; j++) {
-      *(scalar.value( scalar.index( sigN_string(i,j) + mL_string(i) ))) = 0.0;
-      *(scalar.value( scalar.index( sigE_string(i,j) + mL_string(i) ))) = 0.0;
-    }
-  }
-
-  // initialize deposition fields to zero
-  for (int i=0; i<N_groups; i++) {
-    std::string istring = std::to_string(i);
-    enzo_float * N_i_d = (enzo_float *) field.values("photon_density_" + istring + "_deposit");
-    for (int j=0; j<m; j++)
-    {
-      N_i_d[j] = 0.0; 
-    }
   }
 
   // reset subcycle index
@@ -255,12 +235,16 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
   this->call_inject_photons(enzo_block);
 
 #ifdef DEBUG_PRINT_GROUP_PARAMETERS
-  for (int i=0; i<N_groups; i++) {
-    for (int j=0; j<N_species; j++) {
-      CkPrintf("[i,j] = [%d,%d]; sigN = %1.2e cm^2; sigE = %1.2e cm^2; eps = %1.2e eV\n",i,j,
-               *(scalar.value( scalar.index( sigN_string(i,j) ))),
-               *(scalar.value( scalar.index( sigE_string(i,j) ))),
-               *(scalar.value( scalar.index(  eps_string(i)   ))) / enzo_constants::erg_eV);
+  if ((CkMyPe() == 0) && (enzo_block->is_leaf())) {
+    Scalar<double> scalar = block->data()->scalar_double();
+
+    for (int i=0; i<N_groups; i++) {
+      for (int j=0; j<N_species; j++) {
+        CkPrintf("compute() -- [i,j] = [%d,%d]; sigN = %1.2e cm^2; sigE = %1.2e cm^2; eps = %1.2e eV\n",i,j,
+                 *(scalar.value( scalar.index( sigN_string(i,j) ))),
+                 *(scalar.value( scalar.index( sigE_string(i,j) ))),
+                 *(scalar.value( scalar.index(  eps_string(i)   ))) / enzo_constants::erg_eV);
+      }
     }
   }
 #endif
@@ -329,23 +313,31 @@ double EnzoMethodM1Closure::timestep_RT ( EnzoBlock * enzo_block ) const throw()
   field.dimensions (0,&mx,&my,&mz);
   const int rank = ((mz == 1) ? ((my == 1) ? 1 : 2) : 3);
 
-  double hx,hy,hz;
-  enzo_block->cell_width(&hx,&hy,&hz);
+  double xm,ym,zm;
+  double xp,yp,zp;
+  //double hx,hy,hz;
+  enzo_block->data()->lower(&xm,&ym,&zm);
+  enzo_block->data()->upper(&xp,&yp,&zp);
+
+  int gx,gy,gz;
+  field.ghost_depth(0,&gx, &gy, &gz);
+  //field.cell_width(xm,xp,&hx,ym,yp,&hy,zm,zp,&hz);
+
+  double hx = (xp-xm)/(mx-2*gx);
+  double hy = (yp-ym)/(my-2*gy);
+  double hz = (zp-zm)/(mz-2*gz);
 
   double h_min = std::numeric_limits<double>::max();
   if (rank >= 1) h_min = std::min(h_min,hx);
   if (rank >= 2) h_min = std::min(h_min,hy);
   if (rank >= 3) h_min = std::min(h_min,hz);
 
-  // The RT timestep we care about is the one at the highest level 
-  h_min *= pow(2, -cello::hierarchy()->max_level() + enzo_block->level() );
-
   const EnzoConfig * enzo_config = enzo::config();
   EnzoUnits * enzo_units = enzo::units();
 
   double courant = this->courant();
   double clight = enzo_constants::clight * enzo_config->method_m1_closure_clight_frac;
-  return courant * h_min / (clight / enzo_units->velocity());
+  return courant * h_min / (3.0 * clight / enzo_units->velocity());
 }
 
 //-----------------------------------------------------------------------
@@ -561,6 +553,8 @@ void EnzoMethodM1Closure::inject_photons ( EnzoBlock * enzo_block, int igroup ) 
   double f_esc = enzo_config->method_m1_closure_photon_escape_fraction;
 
   Field field = enzo_block->data()->field();
+  Scalar<double> scalar = enzo_block->data()->scalar_double();
+  
   int mx,my,mz;  
   field.dimensions(0,&mx, &my, &mz); //field dimensions, including ghost zones
   int gx,gy,gz;
@@ -591,6 +585,22 @@ void EnzoMethodM1Closure::inject_photons ( EnzoBlock * enzo_block, int igroup ) 
   
   // if no stars, don't do anything
   if (particle.num_particles(it) == 0) return;
+
+  // reset "mL" sums to zero (for cross_section_calculator = "vernier_average")
+  // TODO: only do this once every N cycles, where N is a parameter
+  *(scalar.value( scalar.index( eps_string(igroup) + mL_string(igroup) ))) = 0.0;
+  *(scalar.value( scalar.index( mL_string(igroup) ) )) = 0.0;
+  for (int j=0; j< 3+enzo_config->method_m1_closure_H2_photodissociation; j++) {
+    *(scalar.value( scalar.index( sigN_string(igroup,j) + mL_string(igroup) ))) = 0.0;
+    *(scalar.value( scalar.index( sigE_string(igroup,j) + mL_string(igroup) ))) = 0.0;
+  }
+
+  // initialize deposition field for this group to zero
+  std::string istring = std::to_string(igroup);
+  enzo_float * N_i_d = (enzo_float *) field.values("photon_density_" + istring + "_deposit");
+  for (int j=0; j<mx*my*mz; j++) {
+    N_i_d[j] = 0.0; 
+  }
 
   const int ia_m = particle.attribute_index (it, "mass");
   const int ia_L = particle.attribute_index (it, "luminosity");
@@ -696,7 +706,7 @@ void EnzoMethodM1Closure::inject_photons ( EnzoBlock * enzo_block, int igroup ) 
           }
         }
       }
-      
+    
     } // end loop over particles
   }  // end loop over batches
 
@@ -804,8 +814,8 @@ void EnzoMethodM1Closure::get_reduced_variables (double * chi, double (*n)[3], i
   double Fnorm = sqrt(Fx[i]*Fx[i] + Fy[i]*Fy[i] + Fz[i]*Fz[i]);
   double f = N[i] > 0 ? std::min(Fnorm / (clight*N[i] ), 1.0) : 0.0; // reduced flux ( 0 < f < 1)
   *chi = (3 + 4*f*f) / (5 + 2*sqrt(4-3*f*f)); // isotropy measure (1/3 < chi < 1)
-  double Fnorm_inv = 1.0 / Fnorm;
   if (Fnorm > 0.0) {
+    double Fnorm_inv = 1.0 / Fnorm;
     (*n)[0] = Fx[i]*Fnorm_inv;
     (*n)[1] = Fy[i]*Fnorm_inv; 
     (*n)[2] = Fz[i]*Fnorm_inv;
@@ -849,8 +859,10 @@ void EnzoMethodM1Closure::get_pressure_tensor (EnzoBlock * enzo_block,
   //
   // Note that we're actually storing c^P, since that's the actual
   // value that's being converted to a flux 
+
   double chi;
   double n[3] = {0.0, 0.0, 0.0}; 
+
   for (int iz=gz-1; iz<mz-gz+1; iz++) { 
    for (int iy=gy-1; iy<my-gy+1; iy++) {
     for (int ix=gx-1; ix<mx-gx+1; ix++) {
@@ -1157,6 +1169,10 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
     }
         
     RT_heating_rate[i] = heating_rate * nHI_inv; // units of erg/s/cm^3/nHI
+
+  #ifdef DEBUG_GRACKLE_RATES
+    CkPrintf("i = %d; nHI = %1.2e cm^-3, gamma_HI = %1.2e s^-1; gamma_HeI = %1.2e s^-1; gamma_HeII = %1.2e s^-1; heating_rate = %1.2e erg/s/cm^3 \n", i, 1/nHI_inv, RT_HI_ionization_rate[i]/tunit, RT_HeI_ionization_rate[i]/tunit, RT_HeII_ionization_rate[i]/tunit, RT_heating_rate[i] / nHI_inv);
+  #endif
   }
 
   const GrackleChemistryData * grackle_chem = enzo::grackle_chemistry();
@@ -1177,7 +1193,6 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
       // if not directly photodissociating, fill dissociation rate field with zeros.
       // Note that Grackle add RT_H2_photodissociation_rate to the tabulated LWB rates
       // during runtime.
-      // TODO: This is causing an error in interp3d.F, maybe need bigger numbers?
       for (int i=0; i<mx*my*mz; i++) {
         RT_H2_photodissociation_rate[i] = 1e-10*enzo_config->method_m1_closure_min_photon_density*tunit;
       }
@@ -1351,12 +1366,12 @@ double EnzoMethodM1Closure::D_add_attenuation ( EnzoBlock * enzo_block,
     D += n_j * clight*sigN_ij * tunit; // code_time^-1
 
     #ifdef DEBUG_ATTENUATION
-      CkPrintf("[i,j]=[%d,%d]; sigN_ij=%1.2e; n_j=%1.2e; clight=%1.2e\n", igroup, j, sigN_ij, n_j, clight);
+      CkPrintf("[i,j]=[%d,%d]; sigN_ij=%1.2e; n_j=%1.2e cm^-3; clight=%1.2e\n", igroup, j, sigN_ij, n_j, clight);
     #endif
   }
 
 #ifdef DEBUG_ATTENUATION
-    CkPrintf("i=%d; D=%e s^-1; dt = %e\n",i, D / tunit, enzo_block->dt*enzo_units->time());
+    CkPrintf("i=%d; D=%e s^-1; dt = %e\n",i, D / tunit, enzo_block->state()->dt()*enzo_units->time());
 #endif 
   return D; 
 }
@@ -1458,7 +1473,7 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
   std::vector<std::string> chemistry_fields = {"HI_density", 
                                                "HeI_density", "HeII_density"};
 
-  double mH_inv = enzo_constants::mass_hydrogen;
+  double mH_inv = 1.0 / enzo_constants::mass_hydrogen;
   std::vector<double> masses_inv = {1.0*mH_inv,0.25*mH_inv, 0.25*mH_inv};
 
   for (int iz=gz; iz<mz-gz; iz++) {
@@ -1481,7 +1496,9 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
 
 
       #ifdef DEBUG_TRANSPORT
-        CkPrintf("i = %d; N_update = %f; Fx_update = %f; Nnew[i] = %f; hx = %f; dt = %f \n", i, N_update, Fx_update, Nnew[i], hx, dt);
+        //if ((116000 < i) && (i < 119000)) {
+        CkPrintf("i = %d; N_update = %1.2e; Fx_update = %1.2e; Nnew[i] = %1.2e; hx = %f; dt = %f \n", i, N_update, Fx_update, Nnew[i], hx, dt);
+        //}
       #endif
 
 
@@ -1908,7 +1925,7 @@ void EnzoMethodM1Closure::grackle_solve_chemistry(Block * block) throw()
   if (block->is_leaf()) {
     // note that compute_done() in EnzoMethodGrackle is called in compute(), not compute_(),
     // so we don't have to worry about compute_done() being called more than once per block
-    enzo::grackle_method()->compute_(block);
+    enzo::grackle_method()->compute_(block, true);
   }
 
   return;

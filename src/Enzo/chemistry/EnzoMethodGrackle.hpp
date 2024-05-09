@@ -144,7 +144,7 @@ public: // interface
   }
 
   // making this a public method so that it can be called by EnzoMethodM1Closure -- Will Hicks
-  void compute_( Block * block) const throw();
+  void compute_( Block * block, bool called_from_m1_closure) const throw();
 
 protected: // methods
 

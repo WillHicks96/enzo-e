@@ -17,7 +17,7 @@
 #include <time.h>
 
 // #define DEBUG_SF_CRITERIA
-// #define DEBUG_STORE_INITIAL_PROPERTIES
+ #define DEBUG_STORE_INITIAL_PROPERTIES
 //-------------------------------------------------------------------
 
 EnzoMethodStarMakerSTARSS::EnzoMethodStarMakerSTARSS
@@ -115,6 +115,13 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
     const int ia_vx_0 = particle.attribute_index (it, "vx_0");
     const int ia_vy_0 = particle.attribute_index (it, "vy_0");
     const int ia_vz_0 = particle.attribute_index (it, "vz_0");
+
+    const int ia_tff_0 = particle.attribute_index (it, "freefall_time_0");
+    const int ia_tcool_0 = particle.attribute_index (it, "cooling_time_0");
+    const int ia_rho_0 = particle.attribute_index (it, "density_0");
+    const int ia_temp_0 = particle.attribute_index (it, "temperature_0");
+    const int ia_efrac_0 = particle.attribute_index (it, "electron_fraction_0");
+    const int ia_H2frac_0 = particle.attribute_index (it, "H2_fraction_0");
   #endif
 
   // additional particle attributes
@@ -513,15 +520,7 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
             pmetal[io] = metal[i] / density[i]; // in ABSOLUTE units
           }
 
-          // Remove mass from grid and rescale fraction fields
-          // TODO: If particle position is updated to CM instead of being cell-centered, will have to 
-          //       remove mass using CiC, which could complicate things because that CiC cloud could
-          //       leak into the ghost zones. Would have to use same refresh+accumulate machinery
-          //       as MethodFeedbackSTARSS to account for this.
-          double scale = (1.0 - pmass[io] / cell_mass);
-          density[i] *= scale;
-          // rescale color fields too 
-          this->rescale_densities(enzo_block, i, scale);
+
 
           #ifdef DEBUG_STORE_INITIAL_PROPERTIES 
             enzo_float * pmass0 = (enzo_float *) particle.attribute_array(it, ia_m_0 , ib);
@@ -532,6 +531,13 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
             enzo_float * pvy0   = (enzo_float *) particle.attribute_array(it, ia_vy_0, ib);
             enzo_float * pvz0   = (enzo_float *) particle.attribute_array(it, ia_vz_0, ib);
 
+            enzo_float * ptff0    = (enzo_float *) particle.attribute_array(it, ia_tff_0 , ib);
+            enzo_float * ptcool0    = (enzo_float *) particle.attribute_array(it, ia_tcool_0, ib);
+            enzo_float * prho0    = (enzo_float *) particle.attribute_array(it, ia_rho_0 , ib);
+            enzo_float * ptemp0   = (enzo_float *) particle.attribute_array(it, ia_temp_0, ib);
+            enzo_float * pefrac0   = (enzo_float *) particle.attribute_array(it, ia_efrac_0, ib);
+            enzo_float * pH2frac0   = (enzo_float *) particle.attribute_array(it, ia_H2frac_0, ib);
+
             pmass0[io] = pmass[io];
             px0 [io] = px[io];
             py0 [io] = py[io];
@@ -539,7 +545,24 @@ void EnzoMethodStarMakerSTARSS::compute ( Block *block) throw()
             pvx0[io] = pvx[io];
             pvy0[io] = pvy[io];
             pvz0[io] = pvz[io];
+
+            ptff0[io] = tff; // freefall time in forming cell in code units
+            ptcool0[io] = cooling_time[i]; // cooling time in code units
+            prho0[io] = density[i];
+            ptemp0[io] = temperature[i];
+            pefrac0[io] = d_el[i] / density[i]; // electron number fraction
+            pH2frac0[io] = 0.5*(dH2I[i] + dH2II[i]) / density[i]; // H2 number fraction 
           #endif
+
+          // Remove mass from grid and rescale fraction fields
+          // TODO: If particle position is updated to CM instead of being cell-centered, will have to 
+          //       remove mass using CiC, which could complicate things because that CiC cloud could
+          //       leak into the ghost zones. Would have to use same refresh+accumulate machinery
+          //       as MethodFeedbackSTARSS to account for this.
+          double scale = (1.0 - pmass[io] / cell_mass);
+          density[i] *= scale;
+          // rescale color fields too 
+          this->rescale_densities(enzo_block, i, scale);
 
         } // end loop through particles created in this cell
 

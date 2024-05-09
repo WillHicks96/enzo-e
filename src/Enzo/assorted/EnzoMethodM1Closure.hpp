@@ -258,10 +258,6 @@ protected: // attributes
 
   // Tables relevant to M1 closure method
   M1Tables * M1_tables;
-
-#ifdef CONFIG_USE_GRACKLE
-  //EnzoMethodGrackle * method_grackle_;
-#endif
 };
 
 

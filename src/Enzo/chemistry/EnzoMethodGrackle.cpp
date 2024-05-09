@@ -164,7 +164,7 @@ void EnzoMethodGrackle::compute ( Block * block) throw()
     if (simulation)
       simulation->performance()->start_region(perf_grackle,__FILE__,__LINE__);
 
-    this->compute_(block);
+    this->compute_(block, false);
 
     if (simulation)
       simulation->performance()->stop_region(perf_grackle,__FILE__,__LINE__);
@@ -277,7 +277,7 @@ void EnzoMethodGrackle::update_grackle_density_fields(
 
 //----------------------------------------------------------------------
 
-void EnzoMethodGrackle::compute_ ( Block * block) const throw()
+void EnzoMethodGrackle::compute_ ( Block * block, bool called_from_m1_closure) const throw()
 {
 #ifndef CONFIG_USE_GRACKLE
   ERROR("EnzoMethodGrackle::compute_", "Enzo-E isn't linked to grackle");
@@ -300,10 +300,10 @@ void EnzoMethodGrackle::compute_ ( Block * block) const throw()
   double compute_time = block->state()->time(); // only matters in cosmological sims
   const EnzoMethodM1Closure * m1_closure_method = enzo::m1_closure_method();
 
-  double dt = enzo_config->method_m1_closure_subcycle ? 
+  double dt = (called_from_m1_closure && enzo_config->method_m1_closure_subcycle) ? 
     m1_closure_method->timestep_subcycle(enzo::block(block)) : block->state()->dt();
 
-  grackle_facade_.solve_chemistry(block, compute_time, block->state()->dt());
+  grackle_facade_.solve_chemistry(block, compute_time, dt);
 
   // now we have to do some extra-work after the fact (such as adjusting total
   // energy density and applying floors...)
