@@ -173,7 +173,6 @@ EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
 
   // read in data tables
   M1_tables = new M1Tables();
-
 }
 
 M1Tables::M1Tables ()
@@ -352,6 +351,9 @@ double EnzoMethodM1Closure::timestep_RT ( EnzoBlock * enzo_block ) const throw()
   if (rank >= 1) h_min = std::min(h_min,hx);
   if (rank >= 2) h_min = std::min(h_min,hy);
   if (rank >= 3) h_min = std::min(h_min,hz);
+
+  // The RT timestep we care about is the one at the highest level 
+  h_min *= pow(2, enzo_block->level() - cello::hierarchy()->max_level() );
 
   const EnzoConfig * enzo_config = enzo::config();
   EnzoUnits * enzo_units = enzo::units();
@@ -1873,7 +1875,7 @@ void EnzoBlock::p_method_m1_closure_solve_transport_eqn()
   int num_subcycles = method->get_num_subcycles(this);
 
 #ifdef TRACE_M1_CLOSURE_SUBCYCLE
-  if ((CkMyPe() == 0) && (this->index().is_root())) {
+  if ((CkMyPe() == 0) && (this->is_leaf())) {//(this->index().is_root())) {
     CkPrintf("TRACE_M1_CLOSURE_SUBCYCLE -- [%s] subcycle = %d/%d; dt_sub = %1.2e; dt_global = %1.2e\n", 
       name().c_str(), method_m1_closure_subcycle_index+1, num_subcycles, method->timestep_subcycle(this), this->state()->dt() );
   }
@@ -1883,23 +1885,27 @@ void EnzoBlock::p_method_m1_closure_solve_transport_eqn()
     // solve transport eqn for each group
     method->call_solve_transport_eqn(this);
   }
-  
+ 
+
   if (method_m1_closure_subcycle_index < num_subcycles-1) {
+      
     // if we're not done subcycling, iterate the subcycle index and
     // start the next subcycle
     method_m1_closure_subcycle_index += 1;
 
     // refreshes and calls call_inject_photons(this) again
     method->refresh_after_subcycle(this);
-
-    //method->call_inject_photons(this);
   } 
+ 
   else {
     // sum group fields
-    method->sum_group_fields(this);  
+    method->sum_group_fields(this);
+
     CkPrintf("[is_leaf = %d] calling compute_done()\n", this->is_leaf());
+
     compute_done();
   }
+ 
 
   return;
 }
