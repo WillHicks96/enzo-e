@@ -27,6 +27,7 @@ EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
   : Method()
     , N_groups_(N_groups)
     , ir_injection_(-1)
+    , ir_subcycle_(-1)
 {
 
   const int rank = cello::rank();
@@ -142,19 +143,37 @@ EnzoMethodM1Closure ::EnzoMethodM1Closure(const int N_groups)
   // need to add fluxes to refresh in case we are subcycling
   for (int i=0; i<N_groups_; i++) {
     std::string istring = std::to_string(i); 
-    refresh_injection->add_field("photon_density_" + istring);
-    if (rank >= 1) refresh_injection->add_field("flux_x_" + istring);
-    if (rank >= 2) refresh_injection->add_field("flux_y_" + istring);
-    if (rank >= 3) refresh_injection->add_field("flux_z_" + istring); 
+    //refresh_injection->add_field("photon_density_" + istring);
+    //if (rank >= 1) refresh_injection->add_field("flux_x_" + istring);
+    //if (rank >= 2) refresh_injection->add_field("flux_y_" + istring);
+    //if (rank >= 3) refresh_injection->add_field("flux_z_" + istring); 
     
     refresh_injection->add_field_src_dst
        ("photon_density_"+istring+"_deposit", "photon_density_"+istring); 
   }
 
+  refresh_injection->set_callback(CkIndex_EnzoBlock::p_method_m1_closure_solve_transport_eqn()); 
+
+  // Initialize Refresh object for after subcycle 
+  ir_subcycle_ = add_refresh_();
+
+  cello::simulation()->refresh_set_name(ir_subcycle_, name()+":subcycle");
+  Refresh * refresh_subcycle = cello::refresh(ir_subcycle_);
+
+  // need to add fluxes to refresh in case we are subcycling
+  for (int i=0; i<N_groups_; i++) {
+    std::string istring = std::to_string(i); 
+    refresh_subcycle->add_field("photon_density_" + istring);
+    if (rank >= 1) refresh_subcycle->add_field("flux_x_" + istring);
+    if (rank >= 2) refresh_subcycle->add_field("flux_y_" + istring);
+    if (rank >= 3) refresh_subcycle->add_field("flux_z_" + istring); 
+  }
+
+  refresh_subcycle->set_callback(CkIndex_EnzoBlock::p_method_m1_closure_call_inject_photons()); 
+
   // read in data tables
   M1_tables = new M1Tables();
 
-  refresh_injection->set_callback(CkIndex_EnzoBlock::p_method_m1_closure_solve_transport_eqn()); 
 }
 
 M1Tables::M1Tables ()
@@ -178,6 +197,7 @@ void EnzoMethodM1Closure ::pup (PUP::er &p)
 
   p | N_groups_;
   p | ir_injection_;
+  p | ir_subcycle_;
 }
 
 //----------------------------------------------------------------------
@@ -221,6 +241,7 @@ void EnzoMethodM1Closure::compute ( Block * block ) throw()
 
   if (enzo_config->method_m1_closure_recombination_radiation) {
     // compute the temperature
+
     EnzoComputeTemperature compute_temperature(enzo::fluid_props(),
                                                enzo_config->physics_cosmology);
 
@@ -1168,7 +1189,7 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
       (ionization_rate_fields[j])[i] = ionization_rate * tunit; //update fields with new value, put ionization rates in 1/time_units
     }
         
-    RT_heating_rate[i] = heating_rate * nHI_inv; // units of erg/s/cm^3/nHI
+    RT_heating_rate[i] = std::max(heating_rate * nHI_inv, 1e-50); // units of erg/s/cm^3/nHI
 
   #ifdef DEBUG_GRACKLE_RATES
     CkPrintf("i = %d; nHI = %1.2e cm^-3, gamma_HI = %1.2e s^-1; gamma_HeI = %1.2e s^-1; gamma_HeII = %1.2e s^-1; heating_rate = %1.2e erg/s/cm^3 \n", i, 1/nHI_inv, RT_HI_ionization_rate[i]/tunit, RT_HeI_ionization_rate[i]/tunit, RT_HeII_ionization_rate[i]/tunit, RT_heating_rate[i] / nHI_inv);
@@ -1744,13 +1765,21 @@ void EnzoMethodM1Closure::call_inject_photons(EnzoBlock * enzo_block) throw()
 
 //-----------------------------------
 
+void EnzoBlock::p_method_m1_closure_call_inject_photons()
+{
+  EnzoMethodM1Closure * method = static_cast<EnzoMethodM1Closure*> (this->method()); 
+  method->call_inject_photons(this); 
+}
+
+//-----------------------------------
+
 void EnzoBlock::p_method_m1_closure_set_global_averages(CkReductionMsg * msg)
 {
   EnzoMethodM1Closure * method = static_cast<EnzoMethodM1Closure*> (this->method()); 
   method->set_global_averages(this, msg);
 }
 
-//----
+//-----------------------------------
 
 void EnzoMethodM1Closure::set_global_averages(EnzoBlock * enzo_block, CkReductionMsg * msg) throw()
 {
@@ -1860,16 +1889,27 @@ void EnzoBlock::p_method_m1_closure_solve_transport_eqn()
     // start the next subcycle
     method_m1_closure_subcycle_index += 1;
 
-    method->call_inject_photons(this);
+    // refreshes and calls call_inject_photons(this) again
+    method->refresh_after_subcycle(this);
+
+    //method->call_inject_photons(this);
   } 
   else {
     // sum group fields
     method->sum_group_fields(this);  
-
+    CkPrintf("[is_leaf = %d] calling compute_done()\n", this->is_leaf());
     compute_done();
   }
 
   return;
+}
+
+//-----------------------------------------
+
+void EnzoMethodM1Closure::refresh_after_subcycle(EnzoBlock * enzo_block) throw()
+{
+  cello::refresh(ir_subcycle_)->set_active(enzo_block->is_leaf());
+  enzo_block->refresh_start(ir_subcycle_, CkIndex_EnzoBlock::p_method_m1_closure_call_inject_photons());
 }
 
 //-----------------------------------------

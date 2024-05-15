@@ -123,6 +123,9 @@ public: // interface
   /// & energies
   void set_global_averages (EnzoBlock * enzo_block, CkReductionMsg * msg) throw();
 
+  /// refresh photon_density and flux fields after subcycle (only called if subcycling)
+  void refresh_after_subcycle(EnzoBlock * enzo_block) throw();
+
 protected: // methods
  
   /// numerically integrate f from a to b with Simpson's rule
@@ -189,7 +192,6 @@ protected: // methods
 
   //--------- TRANSPORT STEP --------
 
-
   double flux_function (double U_l, double U_lplus1,
                         double Q_l, double Q_lplus1,
                         double clight, double lmin, double lmax, std::string type) throw();
@@ -250,11 +252,13 @@ protected: // methods
   void grackle_solve_chemistry(Block * block) throw();
 #endif
 
+
 protected: // attributes
   int N_groups_;
 
   // Refresh id's
   int ir_injection_;
+  int ir_subcycle_;
 
   // Tables relevant to M1 closure method
   M1Tables * M1_tables;
