@@ -372,7 +372,7 @@ int EnzoMethodStarMaker::check_cooling_time(const double &cooling_time,const dou
   #ifdef DEBUG_SF
     CkPrintf("MethodStarMaker -- cooling_time = %f, dynamical_time = %f\n",cooling_time*tunit, dynamical_time); 
   #endif
-  return cooling_time*tunit < dynamical_time;
+  return std::abs(cooling_time)*tunit < dynamical_time;
   
 }
 

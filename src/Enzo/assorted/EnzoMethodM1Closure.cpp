@@ -1191,7 +1191,7 @@ void EnzoMethodM1Closure::get_photoionization_and_heating_rates (EnzoBlock * enz
       (ionization_rate_fields[j])[i] = ionization_rate * tunit; //update fields with new value, put ionization rates in 1/time_units
     }
         
-    RT_heating_rate[i] = std::max(heating_rate * nHI_inv, 1e-50); // units of erg/s/cm^3/nHI
+    RT_heating_rate[i] = heating_rate * nHI_inv; // units of erg/s/cm^3/nHI
 
   #ifdef DEBUG_GRACKLE_RATES
     CkPrintf("i = %d; nHI = %1.2e cm^-3, gamma_HI = %1.2e s^-1; gamma_HeI = %1.2e s^-1; gamma_HeII = %1.2e s^-1; heating_rate = %1.2e erg/s/cm^3 \n", i, 1/nHI_inv, RT_HI_ionization_rate[i]/tunit, RT_HeI_ionization_rate[i]/tunit, RT_HeII_ionization_rate[i]/tunit, RT_heating_rate[i] / nHI_inv);
@@ -1496,6 +1496,11 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
   std::vector<std::string> chemistry_fields = {"HI_density", 
                                                "HeI_density", "HeII_density"};
 
+  std::vector<std::string> chemistry_fields_rec = {"HII_density", 
+                                                   "HeII_density", "HeIII_density"};
+
+
+
   double mH_inv = 1.0 / enzo_constants::mass_hydrogen;
   std::vector<double> masses_inv = {1.0*mH_inv,0.25*mH_inv, 0.25*mH_inv};
 
@@ -1519,9 +1524,7 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
 
 
       #ifdef DEBUG_TRANSPORT
-        //if ((116000 < i) && (i < 119000)) {
         CkPrintf("i = %d; N_update = %1.2e; Fx_update = %1.2e; Nnew[i] = %1.2e; hx = %f; dt = %f \n", i, N_update, Fx_update, Nnew[i], hx, dt);
-        //}
       #endif
 
 
@@ -1538,7 +1541,7 @@ void EnzoMethodM1Closure::solve_transport_eqn ( EnzoBlock * enzo_block, int igro
           // update photon density due to recombinations
           // Grackle does recombination chemistry, but doesn't
           // do anything about the radiation that comes out of recombination
-          C = C_add_recombination(enzo_block, T, i, igroup, E_lower, E_upper, &chemistry_fields, &masses_inv);
+          C = C_add_recombination(enzo_block, T, i, igroup, E_lower, E_upper, &chemistry_fields_rec, &masses_inv);
         }
         
         // update radiation fields due to thermochemistry (see appendix A)
@@ -1875,7 +1878,7 @@ void EnzoBlock::p_method_m1_closure_solve_transport_eqn()
   int num_subcycles = method->get_num_subcycles(this);
 
 #ifdef TRACE_M1_CLOSURE_SUBCYCLE
-  if ((CkMyPe() == 0) && (this->is_leaf())) {//(this->index().is_root())) {
+  if ((CkMyPe() == 0) && (this->index().is_root())) {
     CkPrintf("TRACE_M1_CLOSURE_SUBCYCLE -- [%s] subcycle = %d/%d; dt_sub = %1.2e; dt_global = %1.2e\n", 
       name().c_str(), method_m1_closure_subcycle_index+1, num_subcycles, method->timestep_subcycle(this), this->state()->dt() );
   }
@@ -1900,8 +1903,6 @@ void EnzoBlock::p_method_m1_closure_solve_transport_eqn()
   else {
     // sum group fields
     method->sum_group_fields(this);
-
-    CkPrintf("[is_leaf = %d] calling compute_done()\n", this->is_leaf());
 
     compute_done();
   }

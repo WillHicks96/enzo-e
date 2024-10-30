@@ -155,16 +155,15 @@ void EnzoInitialFeedbackTest::enforce_block
       for (int ix = 0; ix < ngx; ix++){
 
          int i = INDEX(ix,iy,iz,ngx,ngy);
-
+         
          // values are specified in CGS in the parameter file
-         d[i]  = enzo_config->initial_feedback_test_density / enzo_units->density(); 
-         d_HI[i]  = enzo_config->initial_feedback_test_HI_density / enzo_units->density();
-         d_HII[i]  = enzo_config->initial_feedback_test_HII_density / enzo_units->density();
-         d_HeI[i]  = enzo_config->initial_feedback_test_HeI_density / enzo_units->density();
-         d_HeII[i]  = enzo_config->initial_feedback_test_HeII_density / enzo_units->density();
-         d_HeIII[i]  = enzo_config->initial_feedback_test_HeIII_density / enzo_units->density();
-         d_electron[i]  = enzo_config->initial_feedback_test_e_density / enzo_units->density();
-
+         //d[i]  = enzo_config->initial_feedback_test_density / enzo_units->density(); 
+         //d_HI[i]  = enzo_config->initial_feedback_test_HI_density / enzo_units->density();
+         //d_HII[i]  = enzo_config->initial_feedback_test_HII_density / enzo_units->density();
+         //d_HeI[i]  = enzo_config->initial_feedback_test_HeI_density / enzo_units->density();
+         //d_HeII[i]  = enzo_config->initial_feedback_test_HeII_density / enzo_units->density();
+         //d_HeIII[i]  = enzo_config->initial_feedback_test_HeIII_density / enzo_units->density();
+         //d_electron[i]  = enzo_config->initial_feedback_test_e_density / enzo_units->density();
          for (int dim = 0; dim < 3; dim++) v3[dim][i] = 0.0;
 
          ge[i] = (enzo_config->initial_feedback_test_temperature / mol_weight /
@@ -173,7 +172,7 @@ void EnzoInitialFeedbackTest::enforce_block
          for (int dim = 0; dim < 3; dim ++)
              te[i] = ge[i] + 0.5 * v3[dim][i] * v3[dim][i];
 
-         metal[i] = enzo_config->initial_feedback_test_metal_fraction * d[i];
+         //metal[i] = enzo_config->initial_feedback_test_metal_fraction * d[i];
 
       }
     }

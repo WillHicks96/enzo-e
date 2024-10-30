@@ -448,7 +448,7 @@ void GrackleFacade::compute_property
   if (!grackle_fields){
     // the cell width is not used for computing for local properties. Thus, we
     // don't require it (for cases where fadaptor wraps EnzoEFltArrayMap)
-    bool omit_cell_width = true;
+    bool omit_cell_width = false; //true;
 
     grackle_fields  = &cur_grackle_fields;
     this->setup_grackle_fields(fadaptor, grackle_fields,
