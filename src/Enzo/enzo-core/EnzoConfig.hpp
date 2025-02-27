@@ -307,6 +307,8 @@ public: // interface
       method_inference_starnet_radius_modifier(0.2),
       method_inference_starnet_S1(true),
       method_inference_starnet_S2(true),
+      method_inference_starnet_model_checkpoint_dir(""),
+      method_inference_starnet_FB_input_dir(""),
       ///EnzoMethodFBNetDeposit
       method_fbnet_deposit_hot_deposit(false),
       /// EnzoMethodStarMaker
@@ -834,6 +836,8 @@ public: // attributes
   double                     method_inference_starnet_radius_modifier;
   bool                       method_inference_starnet_S1;
   bool                       method_inference_starnet_S2;
+  std::string                method_inference_starnet_model_checkpoint_dir;
+  std::string                method_inference_starnet_FB_input_dir;
 
   /// EnzoMethodFBNetDeposit
   bool                       method_fbnet_deposit_hot_deposit;

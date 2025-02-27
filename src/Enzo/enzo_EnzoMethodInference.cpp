@@ -1075,8 +1075,6 @@ void EnzoLevelArray::apply_inference()
     //   see StarNetDataLoader()
     // density, H2I_density, total_energy, div(v), and metal_density
 
-    const std::string stage1_checkpoint = "/home1/07320/whick002/StarNetRuntime/model_checkpoints/smalldense.jtpt";
-    
     // Deserialized stage-1 checkpoint (U-net)
     torch::jit::script::Module stage1 = starfind_->stage1(); 
     torch::Tensor field_data = torch::zeros({1,5,nix_,niy_,niz_}, torch::dtype(torch::kFloat32)); // array that gets passed into model

@@ -267,6 +267,8 @@ EnzoConfig::EnzoConfig() throw ()
   method_inference_starnet_radius_modifier(0.2),
   method_inference_starnet_S1(true),
   method_inference_starnet_S2(true),
+  method_inference_starnet_model_checkpoint_dir(""),
+  method_inference_starnet_FB_input_dir(""),
   // EnzoMethodFBNetDeposit
   method_fbnet_deposit_hot_deposit(false),
   // EnzoMethodM1Closure
@@ -688,6 +690,8 @@ void EnzoConfig::pup (PUP::er &p)
   p | method_inference_starnet_radius_modifier;
   p | method_inference_starnet_S1;
   p | method_inference_starnet_S2;
+  p | method_inference_starnet_model_checkpoint_dir;
+  p | method_inference_starnet_FB_input_dir;
 
   p | method_fbnet_deposit_hot_deposit;
 
@@ -2038,6 +2042,12 @@ void EnzoConfig::read_method_inference_(Parameters* p)
 
   method_inference_starnet_S2 = p->value_logical
     ("Method:inference:starnet_S2",true);
+
+  method_inference_starnet_model_checkpoint_dir = p->value_string
+    ("Method:inference:starnet_model_checkpoint_dir","input/StarNet_checkpoints");
+
+  method_inference_starnet_FB_input_dir = p->value_string
+    ("Method:inference:starnet_FB_input_dir","input/FBNet_inputs");
 }
 
 //----------------------------------------------------------------------
